@@ -35,7 +35,7 @@ in example, three methods are required, can be only RMS_RE too or whatever.
 
 Next, make sure you have a csv file provided by Parse Module that have the following format:
 
-	"Superkingdom","Phylum","Class","Order","Family","Genus","Specie","Name","ti","filename1","filename2","filenameN"
+	Superkingdom,Phylum,Class,Order,Family,Genus,Specie,Name,ti,filename1,filename2,filenameN
 	Bacteria,Firmicutes,Bacilli,Bacillales,Staphylococcaceae,Staphylococcus,Staphylococcus epidermidis,Staphylococcus epidermidis RP62A,"176279",20286,19568,19784,19562
 	Bacteria,Firmicutes,Bacilli,Bacillales,Bacillaceae,Bacillus,Bacillus anthracis,Bacillus anthracis str. CDC 684,"568206",86380,85306,85925,87788
 
@@ -45,7 +45,7 @@ Where the first eight column names are the complete lineage of the pathogen, ti 
 
 Also you can provide your own csv file without lineage (or within) like this:
 	
-	"ti","filename1","filename2","filenameN"
+	ti,filename1,filename2,filenameN
 	176279,20286,19568,19784,19562
 	568206",86380,85306,85925,87788
 	etc,etc,etc,etc,etc
