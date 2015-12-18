@@ -31,7 +31,7 @@ you need to specify what analysis you want in the configuration file like this:
 	#TIPERMANENT=568206
 	#TOTALGENOMES is a flag that you need to specify if ROC CURVE analysis is specified. its mean the universe of genomes (data base) that you used in mapping step (all genomes)
 	
-(in example, three methods are required).
+in example, three methods are required, can be only RMS_RE too or whatever.
 
 Next, make sure you have a csv file provided by Parse Module that have the following format:
 
