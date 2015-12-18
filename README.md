@@ -8,7 +8,7 @@ Analysis Methods Module is a final module from SEPA (Simulation, Execution, Pars
 ## Dependencies
 
 * Bash (comes with Linux and MacOSX)
-* Internet connection if your csv file contain Genomes ID (gi)
+* Internet connection if your realdata file (maybe metasim_conf_file.mprf) contain Genomes ID (gi)
 
 ##Usage
 analysisMethods provide three methods for the csv file:
