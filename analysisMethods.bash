@@ -167,12 +167,37 @@ done
 
 if [ $((statusband)) -ge 4 ]; then
 
+function PerdonazoFunction {
+##########PERDONAZO METHOD FOR ABSENTS################
+if [ "$ABSENT" == "yes" ]; then
+	if [ "$TIPERMANENT" != "" ];then
+		timayor=`awk 'BEGIN{mayor=-1;ti=1}{if($2>mayor){ti=$1;mayor=$2}}END{print ti}' ti_reads_tmp`
+		#make sure you have tifamily.dat
+		family=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$timayor" |awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="family"){printf "%s,",prev}}'`
+		FAMILYPERMAMENT=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$TIPERMANENT" |awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="family"){printf "%s,",prev}}'`			
+		if [ "$family" == "$FAMILYPERMANENT" ]; then
+			sed -i '' "s/[[:<:]]$timayor[[:>:]]/$TIPERMANENT/g" ti_reads_tmp
+			echo "--------------------perdonazo in $filename: yes"
+		else
+			echo "--------------------perdonazo in $filename: no"
+		fi
+	else
+		echo "tax id permament is needed in configuration file (TIPERMAMENT=xxxxx)"
+		rm htmp ti_reads_tmp
+		exit
+	fi
+fi
+######################################################
+}
+
 function R2function {
 	echo -e "Analysis\nR2" > R2.dat
 	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
 	for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
 	do
 		awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
+		
+		PerdonazoFunction
 		firstline=0
 		
 		while read line
@@ -212,6 +237,7 @@ function RMSfunction {
 	for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
 	do
 		awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
+		PerdonazoFunction
 		#in the next line, we find the ti that match in simulation data file.
 		suma=0
 		sumprom=0
@@ -261,26 +287,7 @@ function ROCfunction {
 		FP=0	#false positive
 		FN=0	#false negative
 
-		##########PERDONAZO METHOD FOR ABSENTS################
-		if [ "$ABSENT" == "yes" ]; then
-			if [ "$TIPERMANENT" != "" ];then
-				timayor=`awk 'BEGIN{mayor=-1;ti=1}{if($2>mayor){ti=$1;mayor=$2}}END{print ti}' ti_reads_tmp`
-				#make sure you have tifamily.dat
-				family=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$timayor" |awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="family"){printf "%s,",prev}}'`
-				FAMILYPERMAMENT=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$TIPERMANENT" |awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="family"){printf "%s,",prev}}'`			
-				if [ "$family" == "$FAMILYPERMANENT" ]; then
-					sed -i '' "s/[[:<:]]$timayor[[:>:]]/$TIPERMANENT/g" ti_reads_tmp
-					echo "--------------------perdonazo in $filename: yes"
-				else
-					echo "--------------------perdonazo in $filename: no"
-				fi
-			else
-				echo "tax id permament is needed in configuration file (TIPERMAMENT=xxxxx)"
-				rm htmp ti_reads_tmp
-				exit
-			fi
-		fi
-		######################################################
+		PerdonazoFunction
 		
 		###########TRUE POSITIVE AND FALSE POSITIVE###########
 		for tis in `awk '{print $1}' ti_reads_tmp` #$1 is ti
