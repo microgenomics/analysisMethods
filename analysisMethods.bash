@@ -1,7 +1,6 @@
 export LANG=en_US.UTF-8
-set -ex
+set -e
 
-#notes: make sure you have installed ggplo2 package for R
 ##################PARSE PARAMETERS#############################
 
 workband=0
@@ -34,14 +33,13 @@ do
 		echo -e"\nOptions explain:"
 		echo "--workpath path where directory tree or your files are (included requirement files)"
 		echo "--cfile configuration file"
-		echo "--local"
-		echo "--simdata"
+		echo "--local use this flag if you execute the script separately from SEPA modules"
+		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file"
 		echo -e "--realdata a file that contain the real values of reads distribution (.mprf of metasim)\n"
 		echo "Methods Aviables: R2, RMS_NE, ROC_CURVE. Specify in the config file using the flag 'ANALYSISTYPE'"
 		echo -e "For example: ANALYSISTYPE=RMS_NE,R2 \n"
-		echo "R2 is a determination coefficient among real and simulated data"
-		echo "RMS_RE is root mean square relative and Error in this case, calculated based on the number of reads"
-		echo "ROC Curve is Receiver Operating Characteristic, a method to represent sensitivity and 1-specificity"
+		echo "See the README for more information"
+
 
 		exit
 	;;
