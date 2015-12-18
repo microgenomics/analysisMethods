@@ -340,7 +340,7 @@ function ROCfunction {
 			echo "not implemented yet"
 		;;
 		"1")
-				cd 	$WORKPATH
+				cd $WORKPATH
 
 				for a in $ANALYSISTYPE
 				do
