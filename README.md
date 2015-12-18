@@ -8,7 +8,7 @@ Analysis Methods Module is a final module from SEPA (Simulation, Execution, Pars
 ## Dependencies
 
 * Bash (comes with Linux and MacOSX)
-* Internet Connection if your csv file contain Genomes ID (gi)
+* Internet connection if your csv file contain Genomes ID (gi)
 
 ##Usage
 analysisMethods provide three methods for the csv file:
