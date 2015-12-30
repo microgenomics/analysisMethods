@@ -5,7 +5,7 @@
 
 Analysis Methods Module is a final module from SEPA (Simulation, Execution, Parse and Analysis,  a multi pipe to test pathogen software detection), that analyze a cvs file provided by Parse Module (or your own cvs file in particular format), the analysis aviable are R<sup>2</sup>, RRMSE (relative error) and ROC Curve
 
-## Dependencies
+##Requirements
 
 * Bash version 4 (comes with Linux and MacOSX)
 * Internet connection if your realdata file (maybe metasim_conf_file.mprf) contain Genomes ID (gi)
