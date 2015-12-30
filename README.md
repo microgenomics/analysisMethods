@@ -7,7 +7,7 @@ Analysis Methods Module is a final module from SEPA (Simulation, Execution, Pars
 
 ## Dependencies
 
-* Bash (comes with Linux and MacOSX)
+* Bash version 4 (comes with Linux and MacOSX)
 * Internet connection if your realdata file (maybe metasim_conf_file.mprf) contain Genomes ID (gi)
 
 ##Usage
