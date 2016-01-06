@@ -55,6 +55,7 @@ do
 		echo -e "--realdata a file that contain the real values of reads distribution (.mprf of metasim, or some file with format ti-reads [or gi-reads])\n"
 		echo "Methods Aviables: R2, RMS_NE, ROC_CURVE. Specify in the config file using the flag 'ANALYSISTYPE'"
 		echo -e "For example: ANALYSISTYPE=RMS_NE,R2 \n"
+		echo "For ROC_CURVE you must specify a TOTALGENOMES=[integer] flag"
 		echo "See the README for more information"
 		exit
 	;;
@@ -255,7 +256,7 @@ function R2function {
 		cat htmp R2tmp > Rtmp2
 		paste R2.dat Rtmp2 > ftmp
 		mv ftmp R2.dat
-		rm getR2.R
+		rm getR2.R corr
 		
 	done 
 	rm ti_reads_tmp R2tmp htmp Rtmp2
@@ -327,14 +328,16 @@ function ROCfunction {
 		do
 			linetir=`grep -w "$tis" $REALDATAFILE |awk '{print $1, $2}'` #line="" make the script crash, awk print $1, $2; fix it
 
-			if [ "$linetir" != "" ];then
-				tir=`echo "$linetir" | awk '{print $1}'`
-				readr=`echo "$linetir" | awk '{print $2}'`
-				reads=`grep -w "$tir" ti_reads_tmp | awk '{print $2}'`
-				resultado=`echo "$reads>=($readr/2)" | bc -l` #bash doesn't work with float
-				if [ $((resultado)) -eq 1 ]; then
+			if [ "$linetir" != "" ]; then
+				tir=`echo "$linetir" |awk '{print $1}'`
+				readr=`echo "$linetir" |awk '{print $2}'`
+				reads=`grep -w "$tir" ti_reads_tmp |awk '{print $2}'`
+				resultado=`echo "$reads $readr" |awk '{if($1 >= $2/2){print "1"}else{print "0"}}'` #bash doesn't work with float
+				
+				if [ "$resultado" == "1" ]; then
 					TP=`echo  "$TP+1" |bc`
 				fi
+
 			else
 				FP=`echo "$FP+1" |bc`	
 			fi
