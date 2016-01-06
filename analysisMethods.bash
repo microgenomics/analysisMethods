@@ -228,7 +228,6 @@ function R2function {
 	for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
 	do
 		awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
-		cat ti_reads_tmp
 		PerdonazoFunction
 		firstline=0
 		
@@ -256,7 +255,7 @@ function R2function {
 		cat htmp R2tmp > Rtmp2
 		paste R2.dat Rtmp2 > ftmp
 		mv ftmp R2.dat
-		rm corr getR2.R
+		rm getR2.R
 		
 	done 
 	rm ti_reads_tmp R2tmp htmp Rtmp2
