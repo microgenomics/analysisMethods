@@ -19,9 +19,6 @@ do
 	"--cfile")
 		cfileband=1
 	;;
-	"--local")
-		localband=1
-	;;
 	"--simdata")
 		simdataband=1
 	;;
@@ -29,11 +26,10 @@ do
 		realdataband=1
 	;;
 	"--help")
-		echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [simulation table csv format (',' separated)] --realdata [mconf from metasim] --local"
+		echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [simulation table csv format (',' separated)] --realdata [mconf from metasim]"
 		echo -e"\nOptions explain:"
 		echo "--workpath path where directory tree or your files are (included requirement files)"
 		echo "--cfile configuration file"
-		echo "--local use this flag if you execute the script separately from SEPA modules"
 		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file"
 		echo -e "--realdata a file that contain the real values of reads distribution (.mprf of metasim)\n"
 		echo "Methods Aviables: R2, RMS_NE, ROC_CURVE. Specify in the config file using the flag 'ANALYSISTYPE'"
@@ -103,33 +99,45 @@ do
 				REALDATAFILE=$i
 				realdataband=0
 				#####################	FETCH ID REAL DATA	########################
-				echo "checking your mprf file"
-				echo "reads ti" >> rtmp
-				while read line
-				do
-					ID=`echo "$line" |awk '{print $2}'`
-					#parsed file
-					case $ID in
-						"ti")
-							echo "$line" |awk '{print $3, $1}' >> rtmp				
-						;;
-						"gi")
-							abu=`echo "$line" |awk '{print $1}'`
-							gi=`echo "$line" |awk '{print $3}'`
-							ti=""
-							echo "fetching ti by gi: $gi"
-							while [ "$ti" == "" ]
-							do
-								gi=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk`
-								ti=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
-							done
-							echo "$ti $abu" >> rtmp					
-						;;
-					esac
-				done < $REALDATAFILE
-				REALDATAFILE="rtmp"
-				mv $REALDATAFILE ${WORKPATH}
-				echo "Done"
+				echo "checking your file"
+				fields=`awk 'END{print NF}' $REALDATAFILE`
+				case $fields in
+					"2")
+						echo "file already formated, (cols: ti reads_assigned)"
+					;;
+					"3")
+						echo "ti reads" >> rtmp
+						while read line
+						do
+							ID=`echo "$line" |awk '{print $2}'`
+							#parsed file
+							case $ID in
+								"ti")
+									echo "$line" |awk '{print $3, $1}' >> rtmp				
+								;;
+								"gi")
+									abu=`echo "$line" |awk '{print $1}'`
+									gi=`echo "$line" |awk '{print $3}'`
+									ti=""
+									echo "fetching ti by gi: $gi"
+									while [ "$ti" == "" ]
+									do
+										gi=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk`
+										ti=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
+									done
+									echo "$ti $abu" >> rtmp					
+								;;
+							esac
+						done < $REALDATAFILE
+						REALDATAFILE="rtmp"
+						mv $REALDATAFILE ${WORKPATH}
+						echo "Done"
+					;;
+					*)
+						echo "unrecognized file"
+						exit
+					;;
+				esac
 				#####################################################################
 			else
 				echo "ERROR: $i doesn't exist"
@@ -335,36 +343,29 @@ function ROCfunction {
 	rm ti_reads_tmp htmp filerocname ROCtmp.dat
 	
 }
-	case $localband in
-		"0")
-			echo "not implemented yet"
-		;;
-		"1")
-				cd $WORKPATH
 
-				for a in $ANALYSISTYPE
-				do
-					case $a in
-						"R2")
-							R2function
-						;;
-						"RMS_RE")
-							RMSfunction
-				   		;;
-				   		"ROC_CURVE")
-				   			ROCfunction
-				   		;;
-				   		*)
-				   			echo "no method aviable for $a"
-				   			exit
-				   		;;
-					esac
-				done
-		;;
-	esac		
+	for a in $ANALYSISTYPE
+	do
+		case $a in
+			"R2")
+				R2function
+			;;
+			"RMS_RE")
+				RMSfunction
+	   		;;
+	   		"ROC_CURVE")
+	   			ROCfunction
+	   		;;
+	   		*)
+	   			echo "no method aviable for $a"
+	   			exit
+	   		;;
+		esac
+	done
+			
 	rm stmp rtmp
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
-	echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [table csv] --realdata [mconf from metasim] --local"
+	echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [table csv] --realdata [mconf from metasim]"
 	exit
 fi
