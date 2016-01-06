@@ -10,6 +10,27 @@ statusband=0
 realdataband=0
 simdataband=0
 
+function parsefastaFunction {
+	echo 'BEGIN{FS="|"}
+{
+if($1~">"){
+	split($1,array,">")
+	$1=array[2]
+	for (i=1;i<100;i++){
+	band=0;
+		if($i != ""){
+				if($i==ID){
+					ID=$(i+1);
+					print ID
+					exit 0
+				}
+		}
+				
+	}
+}
+}'
+}
+
 for i in "$@"
 do
 	case $i in
@@ -31,12 +52,10 @@ do
 		echo "--workpath path where directory tree or your files are (included requirement files)"
 		echo "--cfile configuration file"
 		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file"
-		echo -e "--realdata a file that contain the real values of reads distribution (.mprf of metasim)\n"
+		echo -e "--realdata a file that contain the real values of reads distribution (.mprf of metasim, or some file with format ti-reads [or gi-reads])\n"
 		echo "Methods Aviables: R2, RMS_NE, ROC_CURVE. Specify in the config file using the flag 'ANALYSISTYPE'"
 		echo -e "For example: ANALYSISTYPE=RMS_NE,R2 \n"
 		echo "See the README for more information"
-
-
 		exit
 	;;
 	*)
@@ -100,7 +119,7 @@ do
 				realdataband=0
 				#####################	FETCH ID REAL DATA	########################
 				echo "checking your file"
-				fields=`awk 'END{print NF}' $REALDATAFILE`
+				fields=`awk '{print NF;exit}' $REALDATAFILE`
 				case $fields in
 					"2")
 						echo "file already formated, (cols: ti reads_assigned)"
@@ -120,17 +139,21 @@ do
 									gi=`echo "$line" |awk '{print $3}'`
 									ti=""
 									echo "fetching ti by gi: $gi"
+									parsefastaFunction > parsefasta.awk
 									while [ "$ti" == "" ]
 									do
 										gi=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$gi&rettype=fasta" |awk -v ID="gi" -f parsefasta.awk`
 										ti=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
 									done
-									echo "$ti $abu" >> rtmp					
+									rm parsefasta.awk
+									echo "$ti $abu" >> rtmp				
 								;;
 							esac
 						done < $REALDATAFILE
 						REALDATAFILE="rtmp"
-						mv $REALDATAFILE ${WORKPATH}
+						if [ "$WORKPATH" != "." ];then
+							mv $REALDATAFILE ${WORKPATH}
+						fi
 						echo "Done"
 					;;
 					*)
@@ -157,12 +180,12 @@ do
 				else
 					awk -v initial=$colti 'BEGIN{FS=","}{for (i=initial;i<=NF;i++){printf "%s ",$i}printf "\n"}' $SIMDATAFILE > stmp
 					SIMDATAFILE="stmp"
-					sed -i '' "s/\"//g" $SIMDATAFILE
-
 				
 				fi
 				simdataband=0
-				mv $SIMDATAFILE ${WORKPATH}
+				if [ "$WORKPATH" != "." ];then
+					mv $SIMDATAFILE ${WORKPATH}	
+				fi
 
 			else
 				echo "ERROR: $i doesn't exist"
@@ -199,12 +222,13 @@ fi
 }
 
 function R2function {
+	echo "R2function called"
 	echo -e "Analysis\nR2" > R2.dat
 	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
 	for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
 	do
 		awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
-		
+		cat ti_reads_tmp
 		PerdonazoFunction
 		firstline=0
 		
@@ -213,15 +237,13 @@ function R2function {
 			if [ $((firstline)) -eq 0 ];then
 				firstline=1
 			else
-					
 				tir=`echo "$line" |awk '{print $1}'`
 				readr=`echo "$line" | awk '{print $2}'`
 				
 				tis=`grep "$tir" ti_reads_tmp |awk '{print $1}'`
 				reads=`grep "$tis" ti_reads_tmp | awk '{print $2}'`
-				
+
 				if [ "$tis" == "" ]; then
-				
 					echo "$readr 0" >> corr
 				else
 					echo "$reads $readr" >> corr
@@ -229,17 +251,19 @@ function R2function {
 
 			fi
 		done < $REALDATAFILE
-		Rscript ${EXECUTIONPATH}/getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
+		getR2Function > getR2.R
+		Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
 		cat htmp R2tmp > Rtmp2
 		paste R2.dat Rtmp2 > ftmp
 		mv ftmp R2.dat
-		rm corr
+		rm corr getR2.R
 		
 	done 
 	rm ti_reads_tmp R2tmp htmp Rtmp2
 }
 
 function RMSfunction {
+	echo "RMSfunction called"
 	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
 	echo -e "Analysis\nRRMSE\nAVGRE" > rms.dat
 	for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
@@ -283,6 +307,8 @@ function RMSfunction {
 }
 
 function ROCfunction {
+	
+	echo "ROCfunction called"
 	echo "fpr tpr" > ROCtmp.dat
 	echo "file" > filerocname
 	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
@@ -343,14 +369,21 @@ function ROCfunction {
 	rm ti_reads_tmp htmp filerocname ROCtmp.dat
 	
 }
+function getR2Function {
+	echo 'args <-commandArgs()
+myfile<-args[6]
 
+correlaciones<-read.table(myfile,header=FALSE)
+
+summary(lm(V1~V2, data=correlaciones))'
+}
 	for a in $ANALYSISTYPE
 	do
 		case $a in
 			"R2")
 				R2function
 			;;
-			"RMS_RE")
+			"RMS_NE")
 				RMSfunction
 	   		;;
 	   		"ROC_CURVE")
@@ -363,7 +396,7 @@ function ROCfunction {
 		esac
 	done
 			
-	rm stmp rtmp
+	rm -f stmp rtmp
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [table csv] --realdata [mconf from metasim]"
