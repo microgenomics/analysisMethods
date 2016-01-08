@@ -587,7 +587,7 @@ else
 		echo "fpr tpr" > ROCtmp.dat
 		echo "file" > filerocname
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
+		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be name in metaphlan, we begin in reads cols >=2
 		do
 			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 			filename=`cat htmp`
@@ -615,11 +615,10 @@ else
 					if [ "$resultado" == "1" ]; then
 						TP=`echo  "$TP+1" |bc`
 					else
-						band=`echo "$reads $readr" |awk '{if($1==0 && $2>0){print "fn";exit}}'`
-						if [ "$band" == "fn" ]; then
-							FN=`echo "$FN+1" |bc`
+						band=`echo "$reads $readr" |awk '{if($1==0 && $2>0){print "fp";exit}}'`
+						if [ "$band" == "fp" ]; then
+							FP=`echo "$FP+1" |bc`
 						fi
-
 					fi
 
 				else
@@ -683,9 +682,9 @@ else
 					if [ "$resultado" == "1" ]; then
 						TP=`echo  "$TP+1" |bc`
 					else
-						band=`echo "$reads $readr" |awk '{if($1==0 && $2>0){print "fn";exit}}'`
-						if [ "$band" == "fn" ]; then
-							FN=`echo "$FN+1" |bc`
+						band=`echo "$reads $readr" |awk '{if($1==0 && $2>0){print "fp";exit}}'`
+						if [ "$band" == "fp" ]; then
+							FP=`echo "$FP+1" |bc`
 						fi
 
 					fi
