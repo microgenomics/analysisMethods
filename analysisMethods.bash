@@ -1,5 +1,9 @@
-export LANG=en_US.UTF-8
-set -ex
+if [[ "$@" =~ "--debug" ]]; then
+	set -ex
+else
+	set -e
+fi
+
 
 ##################PARSE PARAMETERS#############################
 
@@ -9,7 +13,7 @@ localband=0
 statusband=0
 realdataband=0
 simdataband=0
-metaphlanWorkband=0
+notiWorkband=0
 
 function parsefastaFunction {
 	echo 'BEGIN{FS="|"}
@@ -32,9 +36,9 @@ if($1~">"){
 }'
 }
 
-metawork=`echo "$@" |awk '{if($0 ~ "--metaphlanWork"){print 1}else{print 0}}'`
+metawork=`echo "$@" |awk '{if($0 ~ "--notiWork"){print 1}else{print 0}}'`
 if [ $((metawork)) -eq 1 ];then
-	metaphlanWorkband=1
+	notiWorkband=1
 fi
 
 for i in "$@"
@@ -52,19 +56,20 @@ do
 	"--realdata")
 		realdataband=1
 	;;
-	"--metaphlanWork")
-		metaphlanWorkband=1
+	"--notiWork")
+		notiWorkband=1
 	;;
 	"--help")
 		echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [simulation table csv format (',' separated)] --realdata [mconf from metasim]"
 		echo -e"\nOptions explain:"
 		echo "--workpath path where directory tree or your files are (included requirement files)"
 		echo "--cfile configuration file"
-		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file"
+		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file (e.g. pathoscope_table.csv)"
 		echo -e "--realdata a file that contain the real values of reads distribution (.mprf of metasim, or some file with format ti-reads [or gi-reads])\n"
 		echo "Methods Aviables: R2, RMS_NE, ROC. Specify in the config file using the flag 'ANALYSISTYPE'"
 		echo -e "For example: ANALYSISTYPE=RMS_NE,R2 \n"
 		echo "For ROC_CURVE you must specify a TOTALGENOMES=[integer] flag"
+		echo "if ABSENT=YES PERDONAZO method will apply automatically and TIPERMAMENT must be in config file too (TIPERMAMENT=xxxx where xxxx is a taxonomic id of your permament organism)"
 		echo "See the README for more information"
 		exit
 	;;
@@ -74,7 +79,6 @@ do
 			EXECUTIONPATH=`pwd`
 			statusband=$((statusband+1))
 			workband=0
-			
 		fi
 		
 		if [ $((cfileband)) -eq 1 ];then
@@ -172,7 +176,7 @@ do
 					;;
 				esac
 
-				if [ $((metaphlanWorkband)) -eq 1 ]; then
+				if [ $((notiWorkband)) -eq 1 ]; then
 					echo "metaphlan convertion working"
 
 					#fetch ti for species name
@@ -246,7 +250,7 @@ do
 				SIMDATAFILE=$i
 				ORIGINALSNAME=`echo "$SIMDATAFILE" |rev |cut -d "/" -f 1 |rev`
 
-				if [ $((metaphlanWorkband)) -eq 1 ]; then
+				if [ $((notiWorkband)) -eq 1 ]; then
 					echo "metaphlan convertion working"
 					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Species"){print i;exit}}}}' $SIMDATAFILE`			
 				else
@@ -257,7 +261,7 @@ do
 					echo "header 'ti' not found in $SIMDATAFILE, check your csv"
 					exit
 				else
-					if [ $((metaphlanWorkband)) -eq 1 ]; then
+					if [ $((notiWorkband)) -eq 1 ]; then
 						awk -v initial=$colti 'BEGIN{FS=","}{for (i=(initial-1);i<=NF;i++){printf "%s ",$i}printf "\n"}' $SIMDATAFILE > stmp
 						SIMDATAFILE="stmp"	
 					else
@@ -282,7 +286,7 @@ done
 
 function PerdonazoFunction {
 ##########PERDONAZO METHOD FOR ABSENTS################
-if [ "$ABSENT" == "yes" ]; then
+if [ "$ABSENT" == "YES" ]; then
 	if [ "$TIPERMANENT" != "" ];then
 		timayor=`awk 'BEGIN{mayor=-1;ti=1}{if($2>mayor){ti=$1;mayor=$2}}END{print ti}' ti_reads_tmp`
 		#make sure you have tifamily.dat
@@ -305,7 +309,7 @@ fi
 
 function R2function {
 	echo "R2function called"
-	if [ $((metaphlanWorkband)) -eq 1 ]; then
+	if [ $((notiWorkband)) -eq 1 ]; then
 		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
 		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
@@ -386,7 +390,7 @@ function R2function {
 function RMSfunction {
 	echo "RMSfunction called"
 
-	if [ $((metaphlanWorkband)) -eq 1 ]; then
+	if [ $((notiWorkband)) -eq 1 ]; then
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
 		echo -e "Analysis\nRRMSE\nAVGRE" > RMS.$ORIGINALSNAME
 		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name in metaphlan, we begin in reads cols >=3
@@ -416,21 +420,8 @@ function RMSfunction {
 																				}else{
 																					secure_abu=abu*2
 																				}
-																				if((secure_abu-$3)>=0){
-																					re=(secure_abu-$3)/secure_abu;
-																					if(re>=1){
-																						print suma+1
-																					}else{
-																						print (suma+(re*re));																				
-																					}																				
-																				}else{
-																					re=((secure_abu-$3)*-1)/secure_abu;
-																					if(re>=1){
-																						print suma+1
-																					}else{
-																						print (suma+(re*re));																				
-																					}
-																				}
+																				re=(secure_abu-$3)/secure_abu;
+																				print (suma+(re*re));																				
 																				exit
 																			}
 																		}' name_reads_tmp`
@@ -443,19 +434,13 @@ function RMSfunction {
 																					}
 																					if((secure_abu-$3)>=0){
 																						re=(secure_abu-$3)/secure_abu
-																						if(re>=1){
-																							print suma+1
-																						}else{
+			
 																							print suma+re;
-																						}
 
 																					}else{
 																						re=((secure_abu-$3)*-1)/secure_abu
-																						if(re>=1){
-																							print suma+1
-																						}else{
+						
 																							print suma+re;
-																						}																				
 																					}
 																					exit
 																				}
@@ -583,7 +568,7 @@ if [ "$TOTALGENOMES" == "" ]; then
 else
 	echo "ROCfunction called"
 
-	if [ $((metaphlanWorkband)) -eq 1 ]; then
+	if [ $((notiWorkband)) -eq 1 ]; then
 		echo "fpr tpr" > ROCtmp.dat
 		echo "file" > filerocname
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
@@ -740,7 +725,7 @@ if [ $((statusband)) -ge 4 ]; then
 			"R2")
 				R2function
 			;;
-			"RMS_NE")
+			"RMS_RE")
 				RMSfunction
 	   		;;
 	   		"ROC")
