@@ -65,9 +65,10 @@ do
 		echo "--workpath path where directory tree or your files are (included requirement files)"
 		echo "--cfile configuration file"
 		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file (e.g. pathoscope_table.csv)"
-		echo -e "--realdata a file that contain the real values of reads distribution (.mprf of metasim, or some file with format ti-reads [or gi-reads])\n"
-		echo "Methods Aviables: R2, RMS_NE, ROC. Specify in the config file using the flag 'ANALYSISTYPE'"
-		echo -e "For example: ANALYSISTYPE=RMS_NE,R2 \n"
+		echo "--realdata a file that contain the real values of reads distribution (.mprf of metasim, or some file with format ti-reads [or gi-reads])"
+		echo "--notiWork work when you haven't a file with ti (metaphlan, constrains and kraken)"
+		echo "Methods Aviables: R2, NRRMSE (normalized relative RMS error), ROC. Specify in the config file using the flag 'ANALYSISTYPE'"
+		echo -e "For example: ANALYSISTYPE=NRRMSE,R2\n"
 		echo "For ROC_CURVE you must specify a TOTALGENOMES=[integer] flag"
 		echo "if ABSENT=YES PERDONAZO method will apply automatically and TIPERMAMENT must be in config file too (TIPERMAMENT=xxxx where xxxx is a taxonomic id of your permament organism)"
 		echo "See the README for more information"
@@ -86,39 +87,23 @@ do
 			do
 				Pname=`echo "$parameter" |awk 'BEGIN{FS="="}{print $1}'`		
 				case $Pname in
-					"GENOMESIZEBALANCE")
-						GENOMESIZEBALANCE=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`
-						#echo "${parameters[$i]}"								
-					;;
-					"COMMUNITYCOMPLEX")
-						COMMUNITYCOMPLEX=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
-					;;
-					"SPECIES")
-						SPECIES=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
-					;;
-					"ABUNDANCE")
-						ABUNDANCE=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
-					;;
-					"DOMINANCE")
-					DOMINANCE=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
-					;;
 					"READSIZE")
-						READSIZE=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
+						READSIZE=`echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g"`					
 					;;
 					"ABSENT")
-						ABSENT=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
+						ABSENT=`echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g"`					
 					;;
 					"METHOD")
-						METHOD=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
+						METHOD=`echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g"`					
 					;;
 					"TIPERMANENT")
-						TIPERMANENT=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
+						TIPERMANENT=`echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g"`					
 					;;
 					"TOTALGENOMES")
-						TOTALGENOMES=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`		
+						TOTALGENOMES=`echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g"`		
 					;;
 					"ANALYSISTYPE")
-						ANALYSISTYPE=`echo "$parameter" | awk 'BEGIN{FS="="}{print $2}' | sed "s/,/ /g"`					
+						ANALYSISTYPE=`echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g"`					
 					;;
 				esac
 			done
@@ -177,7 +162,7 @@ do
 				esac
 
 				if [ $((notiWorkband)) -eq 1 ]; then
-					echo "metaphlan convertion working"
+					echo "metaphlan,constrains,kraken convertion working"
 
 					#fetch ti for species name
 					firstline=0
@@ -251,7 +236,7 @@ do
 				ORIGINALSNAME=`echo "$SIMDATAFILE" |rev |cut -d "/" -f 1 |rev`
 
 				if [ $((notiWorkband)) -eq 1 ]; then
-					echo "metaphlan convertion working"
+					echo "metaphlan,constrains,sigma convertion working"
 					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Species"){print i;exit}}}}' $SIMDATAFILE`			
 				else
 					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "ti"){print i;exit}}}}' $SIMDATAFILE`
@@ -293,7 +278,9 @@ if [ "$ABSENT" == "YES" ]; then
 		family=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$timayor" |awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="family"){printf "%s,",prev}}'`
 		FAMILYPERMAMENT=`curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$TIPERMANENT" |awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="family"){printf "%s,",prev}}'`			
 		if [ "$family" == "$FAMILYPERMANENT" ]; then
-			sed -i '' "s/[[:<:]]$timayor[[:>:]]/$TIPERMANENT/g" ti_reads_tmp
+			sed "s/[[:<:]]$timayor[[:>:]]/$TIPERMANENT/g" ti_reads_tmp >tmp
+			rm ti_reads_tmp
+			mv tmp ti_reads_tmp
 			echo "--------------------perdonazo in $filename: yes"
 		else
 			echo "--------------------perdonazo in $filename: no"
@@ -325,8 +312,8 @@ function R2function {
 					firstline=1
 				else
 					name1=`echo "$line" |awk '{print $1}'`
-					name2=`echo "$line" | awk '{print $2}'`
-					readr=`echo "$line" | awk '{print $3}'`
+					name2=`echo "$line" |awk '{print $2}'`
+					readr=`echo "$line" |awk '{print $3}'`
 
 					names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
 					reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
@@ -362,10 +349,10 @@ function R2function {
 					firstline=1
 				else
 					tir=`echo "$line" |awk '{print $1}'`
-					readr=`echo "$line" | awk '{print $2}'`
-					
+					readr=`echo "$line" |awk '{print $2}'`
+
 					tis=`grep "$tir" ti_reads_tmp |awk '{print $1}'`
-					reads=`grep "$tis" ti_reads_tmp | awk '{print $2}'`
+					reads=`grep "$tis" ti_reads_tmp |awk '{print $2}'`
 
 					if [ "$tis" == "" ]; then
 						echo "$readr 0" >> corr
@@ -388,11 +375,11 @@ function R2function {
 }
 
 function RMSfunction {
-	echo "RMSfunction called"
+	echo "NRRMSE function called"
 
 	if [ $((notiWorkband)) -eq 1 ]; then
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		echo -e "Analysis\nRRMSE\nAVGRE" > RMS.$ORIGINALSNAME
+		echo -e "Analysis\nNRRMSE\nNAVGRE" > RMS.$ORIGINALSNAME
 		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name in metaphlan, we begin in reads cols >=3
 		do
 			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
@@ -401,6 +388,10 @@ function RMSfunction {
 			suma=0
 			sumprom=0
 			firstline=0
+			echo "1" > rmin.tmp
+			echo "0" > rmax.tmp
+			echo "1" > amin.tmp
+			echo "0" > amax.tmp
 			PerdonazoFunction
 
 			while read line 
@@ -413,35 +404,25 @@ function RMSfunction {
 					abu=`echo $line |awk '{print $3}'`
 					backupsuma=$suma
 					backupprom=$sumprom
+
 					suma=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$suma '{
 																			if($1==realname1 && $2==realname2){
 																				if(abu==0){
-																					secure_abu=1 #to avoid the 0/0
-																				}else{
-																					secure_abu=abu*2
+																					exit #to avoid the 0/0
 																				}
-																				re=(secure_abu-$3)/secure_abu;
-																				print (suma+(re*re));																				
+																				re=($3-abu)/abu;
+																				print (suma+(re*re));										
 																				exit
 																			}
 																		}' name_reads_tmp`
+
 					sumprom=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$sumprom '{
 																			if($1==realname1 && $2==realname2){
 																					if(abu==0){
-																						secure_abu=1
-																					}else{
-																						secure_abu=abu*2
+																						exit
 																					}
-																					if((secure_abu-$3)>=0){
-																						re=(secure_abu-$3)/secure_abu
-			
-																							print suma+re;
-
-																					}else{
-																						re=((secure_abu-$3)*-1)/secure_abu
-						
-																							print suma+re;
-																					}
+																					re=($3-abu)/abu;
+																					print (suma+re);																						
 																					exit
 																				}
 																			}' name_reads_tmp`
@@ -455,8 +436,12 @@ function RMSfunction {
 
 				fi
 			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
-			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE > rrmsetmp
-			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
+			min=`tail -n1 rmin.tmp`
+			max=`tail -n1 rmax.tmp`
+			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "rmax.tmp"};if($1<min){print $1 >> "rmin.tmp"}}' > rrmsetmp
+			min=`tail -n1 amin.tmp`
+			max=`tail -n1 amax.tmp`
+			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "amax.tmp"};if($1<min){print $1 >> "amin.tmp"}}' > avg
 
 			cat rrmsetmp avg > 2rms
 			cat htmp 2rms > rrmse
@@ -464,10 +449,10 @@ function RMSfunction {
 			mv rmsvalues RMS.$ORIGINALSNAME
 		done
 		
-		rm name_reads_tmp htmp rrmsetmp rrmse avg 2rms	
+		rm name_reads_tmp htmp rrmsetmp rrmse avg 2rms *.tmp
 	else
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		echo -e "Analysis\nRRMSE\nAVGRE" > RMS.$ORIGINALSNAME
+		echo -e "Analysis\nNRRMSE\nNAVGRE" > RMS.$ORIGINALSNAME
 		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
 		do
 			awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
@@ -476,6 +461,10 @@ function RMSfunction {
 			suma=0
 			sumprom=0
 			firstline=0
+			echo "1" > rmin.tmp
+			echo "0" > rmax.tmp
+			echo "1" > amin.tmp
+			echo "0" > amax.tmp
 			PerdonazoFunction
 
 			while read line 
@@ -487,54 +476,25 @@ function RMSfunction {
 					abu=`echo $line |awk '{print $2}'`
 					backupsuma=$suma
 					backupprom=$sumprom
+
+
 					suma=`awk -v realti=$ti -v abu=$abu -v suma=$suma '{
-																			if($1==realti){
+																			if($1==realti){ 
 																				if(abu==0){
-																					secure_abu=1 #to avoid the 0/0
-																				}else{
-																					secure_abu=abu*2
+																					exit #to avoid the 0/0
 																				}
-																				if((secure_abu-$2)>=0){
-																					re=(secure_abu-$2)/secure_abu;
-																					if(re>=1){
-																						print suma+1
-																					}else{
-																						print (suma+(re*re));																				
-																					}																				
-																				}else{
-																					re=((secure_abu-$2)*-1)/secure_abu;
-																					if(re>=1){
-																						print suma+1
-																					}else{
-																						print (suma+(re*re));																				
-																					}
-																				}
+																				re=(($2-abu))/abu;
+																				print (suma+(re*re));
 																				exit
 																			}
 																		}' ti_reads_tmp`
 					sumprom=`awk -v realti=$ti -v abu=$abu -v suma=$sumprom '{
 																			if($1==realti){
 																					if(abu==0){
-																						secure_abu=1
-																					}else{
-																						secure_abu=abu*2
+																						exit
 																					}
-																					if((secure_abu-$2)>=0){
-																						re=(secure_abu-$2)/secure_abu
-																						if(re>=1){
-																							print suma+1
-																						}else{
-																							print suma+re;
-																						}
-
-																					}else{
-																						re=((secure_abu-$2)*-1)/secure_abu
-																						if(re>=1){
-																							print suma+1
-																						}else{
-																							print suma+re;
-																						}																				
-																					}
+																					re=(($2-abu))/abu;
+																					print (suma+re);
 																					exit
 																				}
 																			}' ti_reads_tmp`
@@ -548,8 +508,12 @@ function RMSfunction {
 
 				fi
 			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
-			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE > rrmsetmp
-			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
+			min=`tail -n1 rmin.tmp`
+			max=`tail -n1 rmax.tmp`
+			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "rmax.tmp"};if($1<min){print $1 >> "rmin.tmp"}}' > rrmsetmp
+			min=`tail -n1 amin.tmp`
+			max=`tail -n1 amax.tmp`
+			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "amax.tmp"};if($1<min){print $1 >> "amin.tmp"}}' > avg
 
 			cat rrmsetmp avg > 2rms
 			cat htmp 2rms > rrmse
@@ -557,7 +521,7 @@ function RMSfunction {
 			mv rmsvalues RMS.$ORIGINALSNAME
 		done
 		
-		rm ti_reads_tmp htmp rrmsetmp rrmse avg 2rms
+		rm ti_reads_tmp htmp rrmsetmp rrmse avg 2rms min.tmp max.tmp *.tmp
 	fi
 }
 
@@ -569,7 +533,7 @@ else
 	echo "ROCfunction called"
 
 	if [ $((notiWorkband)) -eq 1 ]; then
-		echo "fpr tpr" > ROCtmp.dat
+		echo "fpr,tpr" > ROCtmp.dat
 		echo "file" > filerocname
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
 		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be name in metaphlan, we begin in reads cols >=2
@@ -632,14 +596,17 @@ else
 			fpr=`echo "$FP $TN" | awk '{print ($1/($1+$2))}'`
 			echo "fpr: $fpr tpr: $tpr"
 			echo "$filename" >> filerocname
-			echo "$fpr $tpr" >> ROCtmp.dat
+			echo "$fpr,$tpr" >> ROCtmp.dat
 		done
 		
-		paste filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
+		paste -d "," filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
+		sed "2d" ROC.$ORIGINALSNAME > tmp
+		rm ROC.$ORIGINALSNAME
+		mv tmp ROC.$ORIGINALSNAME
 
 		rm name_reads_tmp htmp filerocname ROCtmp.dat
 	else
-		echo "fpr tpr" > ROCtmp.dat
+		echo "fpr,tpr" > ROCtmp.dat
 		echo "file" > filerocname
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
 		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
@@ -698,10 +665,10 @@ else
 			fpr=`echo "$FP $TN" | awk '{print ($1/($1+$2))}'`
 			echo "fpr: $fpr tpr: $tpr"
 			echo "$filename" >> filerocname
-			echo "$fpr $tpr" >> ROCtmp.dat
+			echo "$fpr,$tpr" >> ROCtmp.dat
 		done
 		
-		paste filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
+		paste -d "," filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
 
 		rm ti_reads_tmp htmp filerocname ROCtmp.dat
 	fi
@@ -725,7 +692,7 @@ if [ $((statusband)) -ge 4 ]; then
 			"R2")
 				R2function
 			;;
-			"RMS_RE")
+			"NRRMSE")
 				RMSfunction
 	   		;;
 	   		"ROC")
