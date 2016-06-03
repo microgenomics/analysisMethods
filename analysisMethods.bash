@@ -67,8 +67,8 @@ do
 		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file (e.g. pathoscope_table.csv)"
 		echo "--realdata a file that contain the real values of reads distribution (.mprf of metasim, or some file with format ti-reads [or gi-reads])"
 		echo "--notiWork work when you haven't a file with ti (metaphlan, constrains and kraken)"
-		echo "Methods Aviables: R2, NRRMSE (normalized relative RMS error), ROC. Specify in the config file using the flag 'ANALYSISTYPE'"
-		echo -e "For example: ANALYSISTYPE=NRRMSE,R2\n"
+		echo "Methods Aviables: R2, RRMSE (normalized relative RMS error), ROC. Specify in the config file using the flag 'ANALYSISTYPE'"
+		echo -e "For example: ANALYSISTYPE=RRMSE,R2\n"
 		echo "For ROC_CURVE you must specify a TOTALGENOMES=[integer] flag"
 		echo "if ABSENT=YES PERDONAZO method will apply automatically and TIPERMAMENT must be in config file too (TIPERMAMENT=xxxx where xxxx is a taxonomic id of your permament organism)"
 		echo "See the README for more information"
@@ -117,7 +117,7 @@ do
 				REALDATAFILE=$i
 				realdataband=0
 				#####################	FETCH ID REAL DATA	########################
-				echo "checking your file"
+				echo "checking your real data file"
 				fields=`awk '{print NF;exit}' $REALDATAFILE`
 				case $fields in
 					"2")
@@ -233,11 +233,12 @@ do
 				#this is csv file
 				statusband=$((statusband+1))
 				SIMDATAFILE=$i
+				BACKUPS=$i
 				ORIGINALSNAME=`echo "$SIMDATAFILE" |rev |cut -d "/" -f 1 |rev`
 
 				if [ $((notiWorkband)) -eq 1 ]; then
 					echo "metaphlan,constrains,sigma convertion working"
-					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Species"){print i;exit}}}}' $SIMDATAFILE`			
+					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Name"){print i;exit}}}}' $SIMDATAFILE`			
 				else
 					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "ti"){print i;exit}}}}' $SIMDATAFILE`
 				fi
@@ -246,13 +247,10 @@ do
 					echo "header 'ti' not found in $SIMDATAFILE, check your csv"
 					exit
 				else
-					if [ $((notiWorkband)) -eq 1 ]; then
-						awk -v initial=$colti 'BEGIN{FS=","}{for (i=(initial-1);i<=NF;i++){printf "%s ",$i}printf "\n"}' $SIMDATAFILE > stmp
-						SIMDATAFILE="stmp"	
-					else
-						awk -v initial=$colti 'BEGIN{FS=","}{for (i=initial;i<=NF;i++){printf "%s ",$i}printf "\n"}' $SIMDATAFILE > stmp
-						SIMDATAFILE="stmp"							
-					fi
+					#make sim data only with numbers
+					awk -v initial=$colti 'BEGIN{FS=","}{for (i=initial;i<=NF;i++){printf "%s ",$i}printf "\n"}' $SIMDATAFILE > stmp
+					SIMDATAFILE="stmp"							
+
 				fi
 
 				simdataband=0
@@ -299,7 +297,7 @@ function R2function {
 	if [ $((notiWorkband)) -eq 1 ]; then
 		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
+		for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
 		do
 			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 			firstline=0
@@ -375,12 +373,12 @@ function R2function {
 }
 
 function RMSfunction {
-	echo "NRRMSE function called"
+	echo "RRMSE function called"
 
 	if [ $((notiWorkband)) -eq 1 ]; then
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		echo -e "Analysis\nNRRMSE\nNAVGRE" > RMS.$ORIGINALSNAME
-		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name in metaphlan, we begin in reads cols >=3
+		echo -e "Analysis,RRMSE,NAVGRE" > RMS.$ORIGINALSNAME
+		for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be the name in metaphlan,contrains and kraken, we begin in reads cols >=3
 		do
 			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 			PerdonazoFunction
@@ -388,10 +386,6 @@ function RMSfunction {
 			suma=0
 			sumprom=0
 			firstline=0
-			echo "1" > rmin.tmp
-			echo "0" > rmax.tmp
-			echo "1" > amin.tmp
-			echo "0" > amax.tmp
 			PerdonazoFunction
 
 			while read line 
@@ -405,54 +399,49 @@ function RMSfunction {
 					backupsuma=$suma
 					backupprom=$sumprom
 
-					suma=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$suma '{
+					suma=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$suma 'function abs(v) {return v < 0 ? -v : v}{
 																			if($1==realname1 && $2==realname2){
 																				if(abu==0){
 																					exit #to avoid the 0/0
 																				}
-																				re=($3-abu)/abu;
+																				re=abs(($3-abu)/abu);
 																				print (suma+(re*re));										
 																				exit
 																			}
 																		}' name_reads_tmp`
 
-					sumprom=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$sumprom '{
+					sumprom=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$sumprom 'function abs(v) {return v < 0 ? -v : v}{
 																			if($1==realname1 && $2==realname2){
 																					if(abu==0){
 																						exit
 																					}
-																					re=($3-abu)/abu;
+																					re=abs(($3-abu)/abu);
 																					print (suma+re);																						
 																					exit
 																				}
 																			}' name_reads_tmp`
 					if [ "$suma" == "" ];then
-						suma=`echo "$backupsuma" |awk '{print $1+1}'`
+						suma=`echo "$backupsuma"`
 					fi
 			
 					if [ "$sumprom" == "" ];then
-						sumprom=`echo "$backupprom" |awk '{print $1+1}'`
+						sumprom=`echo "$backupprom"`
 					fi
 
 				fi
 			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
-			min=`tail -n1 rmin.tmp`
-			max=`tail -n1 rmax.tmp`
-			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "rmax.tmp"};if($1<min){print $1 >> "rmin.tmp"}}' > rrmsetmp
-			min=`tail -n1 amin.tmp`
-			max=`tail -n1 amax.tmp`
-			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "amax.tmp"};if($1<min){print $1 >> "amin.tmp"}}' > avg
 
-			cat rrmsetmp avg > 2rms
-			cat htmp 2rms > rrmse
-			paste RMS.$ORIGINALSNAME rrmse > rmsvalues
+			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE > rrmsetmp
+			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
+
+			paste -d "," rrmsetmp avg > 2rms
+			paste -d "," htmp 2rms > rrmse
+			cat RMS.$ORIGINALSNAME rrmse > rmsvalues
 			mv rmsvalues RMS.$ORIGINALSNAME
 		done
-		
-		rm name_reads_tmp htmp rrmsetmp rrmse avg 2rms *.tmp
 	else
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		echo -e "Analysis\nNRRMSE\nNAVGRE" > RMS.$ORIGINALSNAME
+		echo -e "Analysis,RRMSE,NAVGRE" > RMS.$ORIGINALSNAME
 		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
 		do
 			awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
@@ -461,10 +450,6 @@ function RMSfunction {
 			suma=0
 			sumprom=0
 			firstline=0
-			echo "1" > rmin.tmp
-			echo "0" > rmax.tmp
-			echo "1" > amin.tmp
-			echo "0" > amax.tmp
 			PerdonazoFunction
 
 			while read line 
@@ -478,51 +463,49 @@ function RMSfunction {
 					backupprom=$sumprom
 
 
-					suma=`awk -v realti=$ti -v abu=$abu -v suma=$suma '{
+					suma=`awk -v realti=$ti -v abu=$abu -v suma=$suma 'function abs(v) {return v < 0 ? -v : v}{
 																			if($1==realti){ 
 																				if(abu==0){
 																					exit #to avoid the 0/0
 																				}
-																				re=(($2-abu))/abu;
+																				re=abs(($2-abu)/abu);
 																				print (suma+(re*re));
 																				exit
 																			}
 																		}' ti_reads_tmp`
-					sumprom=`awk -v realti=$ti -v abu=$abu -v suma=$sumprom '{
+					sumprom=`awk -v realti=$ti -v abu=$abu -v suma=$sumprom 'function abs(v) {return v < 0 ? -v : v}{
 																			if($1==realti){
 																					if(abu==0){
 																						exit
 																					}
-																					re=(($2-abu))/abu;
+																					re=abs(($2-abu)/abu);
 																					print (suma+re);
 																					exit
 																				}
 																			}' ti_reads_tmp`
 					if [ "$suma" == "" ];then
-						suma=`echo "$backupsuma" |awk '{print $1+1}'`
+						suma=`echo "$backupsuma"`
 					fi
 			
 					if [ "$sumprom" == "" ];then
-						sumprom=`echo "$backupprom" |awk '{print $1+1}'`
+						sumprom=`echo "$backupprom"`
 					fi
 
 				fi
 			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
-			min=`tail -n1 rmin.tmp`
-			max=`tail -n1 rmax.tmp`
-			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "rmax.tmp"};if($1<min){print $1 >> "rmin.tmp"}}' > rrmsetmp
-			min=`tail -n1 amin.tmp`
-			max=`tail -n1 amax.tmp`
-			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE |awk -v min=$min -v max=$max '{print $1;if($1>max){print $1 >> "amax.tmp"};if($1<min){print $1 >> "amin.tmp"}}' > avg
 
-			cat rrmsetmp avg > 2rms
-			cat htmp 2rms > rrmse
-			paste RMS.$ORIGINALSNAME rrmse > rmsvalues
+			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE  > rrmsetmp
+			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
+
+			paste -d "," rrmsetmp avg > 2rms
+			paste -d "," htmp 2rms > rrmse
+			cat RMS.$ORIGINALSNAME rrmse > rmsvalues
 			mv rmsvalues RMS.$ORIGINALSNAME
 		done
-		
-		rm ti_reads_tmp htmp rrmsetmp rrmse avg 2rms min.tmp max.tmp *.tmp
 	fi
+
+	rm -f name_reads_tmp htmp rrmsetmp rrmse avg 2rms ti_reads_tmp
+
 }
 
 function ROCfunction {
@@ -536,7 +519,7 @@ else
 		echo "fpr,tpr" > ROCtmp.dat
 		echo "file" > filerocname
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be name in metaphlan, we begin in reads cols >=2
+		for coli in `seq 1 1 $totalcol`	#col 1 and 2 always be name in metaphlan,constrains and kraken, we begin in reads cols >=2
 		do
 			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 			filename=`cat htmp`
@@ -675,6 +658,110 @@ else
 fi
 
 }
+
+function SIMOBSfunction {
+	echo "Simulation vs Observed function called"
+
+	if [ $((notiWorkband)) -eq 0 ]; then
+		echo "convertion ti x lineage working"
+
+		#fetch ti for species name
+		###############################FOR REAL DATA
+		firstline=0
+		while read line
+		do
+			if [ $((firstline)) -eq 0 ]; then
+				firstline=1
+				echo "name reads" > newrealtmp
+			else
+				ti=`echo "$line" |awk '{print $1}'`
+				abu=`echo "$line" |awk '{print $2}'`
+				echo "fetching lineage from ti: $ti"
+				 #fetch the ti by ncbi api
+				nofetch=""
+				while [ "$nofetch" == "" ]
+				do
+					curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml
+					nofetch=`cat tmp.xml`
+				done
+				name=`awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml` #be careful with \n
+				lineage=`awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="superkingdom"){printf "%s,",prev}if($3=="phylum"){printf "%s,",prev}if($3=="class"){printf "%s,",prev}if($3=="order"){printf "%s,", prev}if($3=="family"){printf "%s,",prev}if($3=="genus"){printf "%s,",prev}if($3=="species"){printf "%s,",prev}}' tmp.xml`
+				cand=`echo "$lineage" |awk '{if($0 ~ "Candidatus"){print "yes"}else{print "no"}}'`
+				if [ "$cand" == "yes" ]; then
+					name=`echo "$name" |sed "s/Candidatus //g"`
+					echo "$name $abu" >> newrealtmp
+				else
+					name=`echo "$lineage" |awk 'BEGIN{FS=","}{print $7}'`
+					echo "$name $abu" >> newrealtmp
+				fi
+				rm tmp.xml
+			fi
+		done < <(grep "" $REALDATAFILE)
+		rm -f rtmp
+		mv newrealtmp rtmp
+		REALDATAFILE="rtmp"
+
+		#Grouping same names
+		firstline=0
+		while read line
+		do
+			if [ $((firstline)) -eq 0 ]; then
+				firstline=1
+				echo "name reads" > tmp
+			else
+				name1=`echo "$line" |awk '{print $1}'`
+				name2=`echo "$line" |awk '{print $2}'`
+				band=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' tmp`
+				if [ "$band" != "find" ];then
+					suma=`awk -v name1=$name1 -v name2=$name2 'BEGIN{suma=0}{if($1==name1 && $2==name2){suma+=$3}}END{print suma}' $REALDATAFILE`
+					echo "$name1 $name2 $suma" >> tmp
+				fi
+			fi
+		done < <(grep "" $REALDATAFILE)
+		rm rtmp
+		mv tmp rtmp
+
+
+		####################################FOR OBSERVED DATA (SOFTWARE DETECTION)
+		#fetch ti for species name
+		
+		awk 'BEGIN{FS=","}{printf "%s ",$7 ;for (i=10;i<=NF;i++){printf "%s ",$i}printf "\n"}' $BACKUPS > stmp
+		SIMDATAFILE="stmp"
+
+		#Grouping same names
+		
+
+	fi
+exit
+	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
+	echo "File,Sim,Obs" > SIMOBS.$ORIGINALSNAME
+	for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be the name in metaphlan,contrains and kraken, we begin in reads cols >=3
+	do
+		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+
+		firstline=0
+		PerdonazoFunction
+		while read line 
+		do
+			names=""
+			if [ $((firstline)) -eq 0 ];then
+				firstline=1
+			else
+				name1=`echo "$line" |awk '{print $1}'`
+				name2=`echo "$line" |awk '{print $2}'`
+				readr=`echo "$line" |awk '{print $3}'`
+				names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
+				reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
+				if [ "$names" == "" ]; then
+					echo "$name1""_$name2,$readr,0" >> SIMOBS.$ORIGINALSNAME
+				else
+					echo "$name1""_$name2,$readr,$reads" >> SIMOBS.$ORIGINALSNAME
+				fi
+			fi
+		done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
+	done
+}
+
 function getR2Function {
 	echo 'args <-commandArgs()
 myfile<-args[6]
@@ -692,9 +779,12 @@ if [ $((statusband)) -ge 4 ]; then
 			"R2")
 				R2function
 			;;
-			"NRRMSE")
+			"RRMSE")
 				RMSfunction
 	   		;;
+	   		"SIMOBS")
+				SIMOBSfunction
+			;;
 	   		"ROC")
 	   			ROCfunction
 	   		;;
@@ -705,7 +795,7 @@ if [ $((statusband)) -ge 4 ]; then
 		esac
 	done
 			
-	rm -f stmp rtmp
+	#rm -f stmp rtmp
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [table csv] --realdata [mconf from metasim]"
