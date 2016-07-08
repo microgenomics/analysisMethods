@@ -36,6 +36,22 @@ if($1~">"){
 }'
 }
 
+function groupingFunction {
+	echo 'args<-commandArgs()
+	file<-c(args[6])
+	headr<-c(args[7])
+	if(headr=="T"){
+			df<-read.csv(file, header = T)
+			newdf<-aggregate(. ~ Species, df, FUN = sum)
+
+	}else{
+			df<-read.csv(file, header = F)
+			colnames(df)<-c("COL1","COL2")
+			newdf<-aggregate(. ~ COL1, df, FUN = sum)
+	}
+	write.table(newdf,file,row.names = F,quote = F)' > grp.R
+}
+
 metawork=`echo "$@" |awk '{if($0 ~ "--notiWork"){print 1}else{print 0}}'`
 if [ $((metawork)) -eq 1 ];then
 	notiWorkband=1
@@ -184,43 +200,29 @@ do
 							done
 							name=`awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml` #be careful with \n
 							lineage=`awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="superkingdom"){printf "%s,",prev}if($3=="phylum"){printf "%s,",prev}if($3=="class"){printf "%s,",prev}if($3=="order"){printf "%s,", prev}if($3=="family"){printf "%s,",prev}if($3=="genus"){printf "%s,",prev}if($3=="species"){printf "%s,",prev}}' tmp.xml`
-							cand=`echo "$lineage" |awk '{if($0 ~ "Candidatus"){print "yes"}else{print "no"}}'`
-							if [ "$cand" == "yes" ]; then
+							lineage=`echo $lineage |awk '{gsub("\\[|\\]","");print $0}'`
+							cand=`echo "$lineage" |awk '{if($0 ~ "Candidatus"){print "YES"}else{print "NO"}}'`
+							if [ "$cand" == "YES" ]; then
 								name=`echo "$name" |sed "s/Candidatus //g"`
 								echo "$name $abu" >> newrealtmp
 							else
-								name=`echo "$lineage" |awk 'BEGIN{FS=","}{print $7}'`
+								name=`echo "$name" |awk '{gsub("\\[|\\]","");print $1, $2}'`
 								echo "$name $abu" >> newrealtmp
 							fi
 							rm tmp.xml
 						fi
 					done < <(grep "" $REALDATAFILE)
-					rm -f rtmp
-					mv newrealtmp rtmp
+					
+					awk '{if(NR>1){print "\""$1" "$2"\""","$3}}' newrealtmp >rtmp
+					rm -f newrealtmp
 					REALDATAFILE="rtmp"
-
+				
 					#Grouping same names
-					firstline=0
-					while read line
-					do
-						if [ $((firstline)) -eq 0 ]; then
-							firstline=1
-							echo "name reads" > tmp
-						else
-							name1=`echo "$line" |awk '{print $1}'`
-							name2=`echo "$line" |awk '{print $2}'`
-							band=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' tmp`
-							if [ "$band" != "find" ];then
-								suma=`awk -v name1=$name1 -v name2=$name2 'BEGIN{suma=0}{if($1==name1 && $2==name2){suma+=$3}}END{print suma}' $REALDATAFILE`
-								echo "$name1 $name2 $suma" >> tmp
-							fi
-							
-						fi
-					done < <(grep "" $REALDATAFILE)
-					rm rtmp
-					mv tmp rtmp
+					groupingFunction
+					Rscript grp.R rtmp F
+
 				fi
-			
+
 			#####################################################################
 			else
 				echo "ERROR: $i doesn't exist"
@@ -247,16 +249,16 @@ do
 					echo "header 'ti' not found in $SIMDATAFILE, check your csv"
 					exit
 				else
-					#make sim data only with numbers
-					awk -v initial=$colti 'BEGIN{FS=","}{for (i=initial;i<=NF;i++){printf "%s ",$i}printf "\n"}' $SIMDATAFILE > stmp
-					SIMDATAFILE="stmp"							
+					#make sim data only with ti numbers
+					awk -v initial=$colti -F"," '{for (i=initial;i<=NF;i++){printf "%s ",$i}printf "\n"}' $SIMDATAFILE > stmp
+					SIMDATAFILE="stmp"
 
 				fi
 
 				simdataband=0
 				if [ "$WORKPATH" != "." ];then
 					mv $SIMDATAFILE ${WORKPATH}	
-				fi				
+				fi
 
 			else
 				echo "ERROR: $i doesn't exist"
@@ -266,6 +268,15 @@ do
 	;;
 	esac
 done
+
+function getR2Function {
+	echo 'args <-commandArgs()
+myfile<-args[6]
+
+correlaciones<-read.table(myfile,header=FALSE)
+
+summary(lm(V1~V2, data=correlaciones))'
+}
 
 function PerdonazoFunction {
 ##########PERDONAZO METHOD FOR ABSENTS################
@@ -293,7 +304,9 @@ fi
 }
 
 function R2function {
-	echo "R2function called"
+	#WARNING WRONG IMPLEMENTED
+	folder=`pwd`
+	echo "R2function called in $folder"
 	if [ $((notiWorkband)) -eq 1 ]; then
 		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
@@ -373,7 +386,8 @@ function R2function {
 }
 
 function RMSfunction {
-	echo "RRMSE function called"
+	folder=`pwd`
+	echo "RRMSE function called in $folder"
 
 	if [ $((notiWorkband)) -eq 1 ]; then
 		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
@@ -513,7 +527,8 @@ function ROCfunction {
 if [ "$TOTALGENOMES" == "" ]; then
 	echo "you need to specify TOTALGENOMES flag, to calculate roc curves"
 else
-	echo "ROCfunction called"
+	folder=`pwd`
+	echo "ROCfunction called in $folder"
 
 	if [ $((notiWorkband)) -eq 1 ]; then
 		echo "fpr,tpr" > ROCtmp.dat
@@ -652,7 +667,6 @@ else
 		done
 		
 		paste -d "," filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
-
 		rm ti_reads_tmp htmp filerocname ROCtmp.dat
 	fi
 fi
@@ -660,7 +674,8 @@ fi
 }
 
 function SIMOBSfunction {
-	echo "Simulation vs Observed function called"
+	folder=`pwd`
+	echo "Simulation vs Observed function called in: $folder"
 
 	if [ $((notiWorkband)) -eq 0 ]; then
 		echo "convertion ti x lineage working"
@@ -686,90 +701,75 @@ function SIMOBSfunction {
 				done
 				name=`awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml` #be careful with \n
 				lineage=`awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="superkingdom"){printf "%s,",prev}if($3=="phylum"){printf "%s,",prev}if($3=="class"){printf "%s,",prev}if($3=="order"){printf "%s,", prev}if($3=="family"){printf "%s,",prev}if($3=="genus"){printf "%s,",prev}if($3=="species"){printf "%s,",prev}}' tmp.xml`
-				cand=`echo "$lineage" |awk '{if($0 ~ "Candidatus"){print "yes"}else{print "no"}}'`
-				if [ "$cand" == "yes" ]; then
+				lineage=`echo $lineage |awk '{gsub("\\[|\\]","");print $0}'`
+				cand=`echo "$lineage" |awk '{if($0 ~ "Candidatus"){print "YES"}else{print "NO"}}'`
+				if [ "$cand" == "YES" ]; then
 					name=`echo "$name" |sed "s/Candidatus //g"`
 					echo "$name $abu" >> newrealtmp
 				else
-					name=`echo "$lineage" |awk 'BEGIN{FS=","}{print $7}'`
+					name=`echo "$name" |awk '{gsub("\\[|\\]","");print $1, $2}'`
 					echo "$name $abu" >> newrealtmp
 				fi
 				rm tmp.xml
 			fi
 		done < <(grep "" $REALDATAFILE)
-		rm -f rtmp
-		mv newrealtmp rtmp
+		awk '{if(NR>1){print "\""$1" "$2"\""","$3}}' newrealtmp >rtmp
+		rm -f newrealtmp
 		REALDATAFILE="rtmp"
-
+		
 		#Grouping same names
-		firstline=0
-		while read line
-		do
-			if [ $((firstline)) -eq 0 ]; then
-				firstline=1
-				echo "name reads" > tmp
-			else
-				name1=`echo "$line" |awk '{print $1}'`
-				name2=`echo "$line" |awk '{print $2}'`
-				band=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' tmp`
-				if [ "$band" != "find" ];then
-					suma=`awk -v name1=$name1 -v name2=$name2 'BEGIN{suma=0}{if($1==name1 && $2==name2){suma+=$3}}END{print suma}' $REALDATAFILE`
-					echo "$name1 $name2 $suma" >> tmp
-				fi
-			fi
-		done < <(grep "" $REALDATAFILE)
-		rm rtmp
-		mv tmp rtmp
-
+		echo "Grouping real otus"
+		groupingFunction
+		Rscript grp.R rtmp F
 
 		####################################FOR OBSERVED DATA (SOFTWARE DETECTION)
 		#fetch ti for species name
-		
-		awk 'BEGIN{FS=","}{printf "%s ",$7 ;for (i=10;i<=NF;i++){printf "%s ",$i}printf "\n"}' $BACKUPS > stmp
+		awk 'BEGIN{FS=","}{printf "\"%s\",",$7 ;for (i=10;i<NF;i++){printf "%s,",$i}printf "%s\n",$NF}' $BACKUPS > stmp
 		SIMDATAFILE="stmp"
-
 		#Grouping same names
-		
+
+		echo "Grouping otus simulated otus"
+		groupingFunction
+		Rscript grp.R stmp T
+		sed "s/\.reads/-reads/g" stmp > tmp
+		mv tmp stmp
+		rm grp.R
 
 	fi
-exit
-	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-	echo "File,Sim,Obs" > SIMOBS.$ORIGINALSNAME
-	for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be the name in metaphlan,contrains and kraken, we begin in reads cols >=3
+
+	totalcol=`awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE`
+	awk '{if(NR>1){print $1" "$2","$3}else{print "OTU,REAL"}}' $REALDATAFILE > SIMOBS.$ORIGINALSNAME
+
+	for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name we begin in reads cols >=3
 	do
-		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 
 		firstline=0
 		PerdonazoFunction
-		while read line 
+		while read line
 		do
-			names=""
 			if [ $((firstline)) -eq 0 ];then
 				firstline=1
 			else
 				name1=`echo "$line" |awk '{print $1}'`
 				name2=`echo "$line" |awk '{print $2}'`
 				readr=`echo "$line" |awk '{print $3}'`
-				names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
 				reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
-				if [ "$names" == "" ]; then
-					echo "$name1""_$name2,$readr,0" >> SIMOBS.$ORIGINALSNAME
+				if [ "$reads" == "" ]; then
+					echo "0" >> simobstmp
 				else
-					echo "$name1""_$name2,$readr,$reads" >> SIMOBS.$ORIGINALSNAME
+					echo "$reads" >> simobstmp
 				fi
 			fi
 		done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
+		cat htmp simobstmp > header
+		paste -d "," SIMOBS.$ORIGINALSNAME header > filetmp
+		mv filetmp SIMOBS.$ORIGINALSNAME
+		rm simobstmp header
 	done
+	rm htmp name_reads_tmp
 }
 
-function getR2Function {
-	echo 'args <-commandArgs()
-myfile<-args[6]
-
-correlaciones<-read.table(myfile,header=FALSE)
-
-summary(lm(V1~V2, data=correlaciones))'
-}
 
 if [ $((statusband)) -ge 4 ]; then
 
@@ -795,7 +795,7 @@ if [ $((statusband)) -ge 4 ]; then
 		esac
 	done
 			
-	#rm -f stmp rtmp
+	rm -f stmp rtmp
 else
 	echo "Invalid or Missing Parameters, print --help to see the options"
 	echo "Usage: bash analysisMethods.bash --workpath [files directory] --cfile [config file] --simdata [table csv] --realdata [mconf from metasim]"
