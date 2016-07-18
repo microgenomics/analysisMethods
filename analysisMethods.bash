@@ -178,7 +178,7 @@ do
 				esac
 
 				if [ $((notiWorkband)) -eq 1 ]; then
-					echo "metaphlan,constrains,kraken convertion working"
+					echo "metaphlan,constrains,kraken convertion working for the real (simulated) data file"
 
 					#fetch ti for species name
 					firstline=0
@@ -523,9 +523,9 @@ function RMSfunction {
 }
 
 function ROCfunction {
-	
-if [ "$TOTALGENOMES" == "" ]; then
-	echo "you need to specify TOTALGENOMES flag, to calculate roc curves"
+re='^[0-9]+$'
+if ! [[ "$TOTALGENOMES" =~ $re ]] ; then
+	echo "you need to specify TOTALGENOMES flag with a valid number to calculate roc curves"
 else
 	folder=`pwd`
 	echo "ROCfunction called in $folder"
