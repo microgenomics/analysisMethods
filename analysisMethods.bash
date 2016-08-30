@@ -13,7 +13,7 @@ localband=0
 statusband=0
 realdataband=0
 simdataband=0
-notiWorkband=0
+notiWorkband=1 #always be the transformation to lineage on real data file
 
 function parsefastaFunction {
 	echo 'BEGIN{FS="|"}
@@ -41,7 +41,7 @@ function groupingFunction {
 	file<-c(args[6])
 	headr<-c(args[7])
 	if(headr=="T"){
-			df<-read.csv(file, header = T)
+			df<-read.csv(file, header = T, check.names = F)
 			newdf<-aggregate(. ~ Species, df, FUN = sum)
 
 	}else{
@@ -177,6 +177,7 @@ do
 					;;
 				esac
 
+				#now notiWorkband always be 1
 				if [ $((notiWorkband)) -eq 1 ]; then
 					echo "metaphlan,constrains,kraken convertion working for the real (simulated) data file"
 
@@ -191,12 +192,15 @@ do
 							ti=`echo "$line" |awk '{print $1}'`
 							abu=`echo "$line" |awk '{print $2}'`
 							echo "fetching lineage from ti: $ti"
-							 #fetch the ti by ncbi api
+							#fetch the ti by ncbi api
 							nofetch=""
 							while [ "$nofetch" == "" ]
 							do
-								curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml
-								nofetch=`cat tmp.xml`
+								if curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml ;then
+									nofetch=`cat tmp.xml`
+								else
+									echo "curl error fetch, internet connection?"
+								fi
 							done
 							name=`awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml` #be careful with \n
 							lineage=`awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="superkingdom"){printf "%s,",prev}if($3=="phylum"){printf "%s,",prev}if($3=="class"){printf "%s,",prev}if($3=="order"){printf "%s,", prev}if($3=="family"){printf "%s,",prev}if($3=="genus"){printf "%s,",prev}if($3=="species"){printf "%s,",prev}}' tmp.xml`
@@ -239,7 +243,7 @@ do
 				ORIGINALSNAME=`echo "$SIMDATAFILE" |rev |cut -d "/" -f 1 |rev`
 
 				if [ $((notiWorkband)) -eq 1 ]; then
-					echo "metaphlan,constrains,sigma convertion working"
+					echo "metaphlan,constrains,sigma convertion working" #now convertions apply to all softwares, check parseMethods for know the changes
 					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Name"){print i;exit}}}}' $SIMDATAFILE`			
 				else
 					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "ti"){print i;exit}}}}' $SIMDATAFILE`
@@ -303,98 +307,98 @@ fi
 ######################################################
 }
 
-function R2function {
-	#WARNING WRONG IMPLEMENTED
-	folder=`pwd`
-	echo "R2function called in $folder"
-	if [ $((notiWorkband)) -eq 1 ]; then
-		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
-		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
-		do
-			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
-			firstline=0
-			PerdonazoFunction
-
-			while read line
-			do
-				names=""
-				if [ $((firstline)) -eq 0 ];then
-					firstline=1
-				else
-					name1=`echo "$line" |awk '{print $1}'`
-					name2=`echo "$line" |awk '{print $2}'`
-					readr=`echo "$line" |awk '{print $3}'`
-
-					names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
-					reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
-
-					if [ "$names" == "" ]; then
-						echo "$readr 0" >> corr
-					else
-						echo "$reads $readr" >> corr
-					fi
-				fi
-			done < <(grep "" $REALDATAFILE)
-			getR2Function > getR2.R
-			Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
-			cat htmp R2tmp > Rtmp2
-			paste R2.$ORIGINALSNAME Rtmp2 > ftmp
-			mv ftmp R2.$ORIGINALSNAME
-			rm getR2.R corr
-		done 
-		rm name_reads_tmp R2tmp htmp Rtmp2
-	else
-		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
-		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
-		do
-			awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
-			firstline=0
-			PerdonazoFunction
-
-			while read line
-			do
-				tis=""
-				if [ $((firstline)) -eq 0 ];then
-					firstline=1
-				else
-					tir=`echo "$line" |awk '{print $1}'`
-					readr=`echo "$line" |awk '{print $2}'`
-
-					tis=`grep "$tir" ti_reads_tmp |awk '{print $1}'`
-					reads=`grep "$tis" ti_reads_tmp |awk '{print $2}'`
-
-					if [ "$tis" == "" ]; then
-						echo "$readr 0" >> corr
-					else
-						echo "$reads $readr" >> corr
-					fi
-
-				fi
-			done < <(grep "" $REALDATAFILE)
-			getR2Function > getR2.R
-			Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
-			cat htmp R2tmp > Rtmp2
-			paste R2.$ORIGINALSNAME Rtmp2 > ftmp
-			mv ftmp R2.$ORIGINALSNAME
-			rm getR2.R corr
-			
-		done 
-		rm ti_reads_tmp R2tmp htmp Rtmp2
-	fi
-}
+#function R2function {
+#	#WARNING WRONG IMPLEMENTED
+#	folder=`pwd`
+#	echo "R2function called in $folder"
+#	if [ $((notiWorkband)) -eq 1 ]; then
+#		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
+#		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
+#		for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
+#		do
+#			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+#			firstline=0
+#			PerdonazoFunction
+#
+#			while read line
+#			do
+#				names=""
+#				if [ $((firstline)) -eq 0 ];then
+#					firstline=1
+#				else
+#					name1=`echo "$line" |awk '{print $1}'`
+#					name2=`echo "$line" |awk '{print $2}'`
+#					readr=`echo "$line" |awk '{print $3}'`
+#
+#					names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
+#					reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
+#
+#					if [ "$names" == "" ]; then
+#						echo "$readr 0" >> corr
+#					else
+#						echo "$reads $readr" >> corr
+#					fi
+#				fi
+#			done < <(grep "" $REALDATAFILE)
+#			getR2Function > getR2.R
+#			Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
+#			cat htmp R2tmp > Rtmp2
+#			paste R2.$ORIGINALSNAME Rtmp2 > ftmp
+#			mv ftmp R2.$ORIGINALSNAME
+#			rm getR2.R corr
+#		done 
+#		rm name_reads_tmp R2tmp htmp Rtmp2
+#	else
+#		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
+#		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
+#		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
+#		do
+#			awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
+#			firstline=0
+#			PerdonazoFunction
+#
+#			while read line
+#			do
+#				tis=""
+#				if [ $((firstline)) -eq 0 ];then
+#					firstline=1
+#				else
+#					tir=`echo "$line" |awk '{print $1}'`
+#					readr=`echo "$line" |awk '{print $2}'`
+#
+#					tis=`grep "$tir" ti_reads_tmp |awk '{print $1}'`
+#					reads=`grep "$tis" ti_reads_tmp |awk '{print $2}'`
+#
+#					if [ "$tis" == "" ]; then
+#						echo "$readr 0" >> corr
+#					else
+#						echo "$reads $readr" >> corr
+#					fi
+#
+#				fi
+#			done < <(grep "" $REALDATAFILE)
+#			getR2Function > getR2.R
+#			Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
+#			cat htmp R2tmp > Rtmp2
+#			paste R2.$ORIGINALSNAME Rtmp2 > ftmp
+#			mv ftmp R2.$ORIGINALSNAME
+#			rm getR2.R corr
+#			
+#		done 
+#		rm ti_reads_tmp R2tmp htmp Rtmp2
+#	fi
+#}
 
 function RMSfunction {
 	folder=`pwd`
 	echo "RRMSE function called in $folder"
 
 	if [ $((notiWorkband)) -eq 1 ]; then
-		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
+		totalcol=`awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE`
 		echo -e "Analysis,RRMSE,NAVGRE" > RMS.$ORIGINALSNAME
-		for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be the name in metaphlan,contrains and kraken, we begin in reads cols >=3
+		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name
 		do
-			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 			PerdonazoFunction
 			#in the next line, we find the ti that match in simulation data file.
 			suma=0
@@ -444,12 +448,14 @@ function RMSfunction {
 
 				fi
 			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
+			#exit
 
 			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE > rrmsetmp
 			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
 
 			paste -d "," rrmsetmp avg > 2rms
 			paste -d "," htmp 2rms > rrmse
+			cat rrmse
 			cat RMS.$ORIGINALSNAME rrmse > rmsvalues
 			mv rmsvalues RMS.$ORIGINALSNAME
 		done
@@ -524,19 +530,21 @@ function RMSfunction {
 
 function ROCfunction {
 re='^[0-9]+$'
+#only number no spaces
 if ! [[ "$TOTALGENOMES" =~ $re ]] ; then
 	echo "you need to specify TOTALGENOMES flag with a valid number to calculate roc curves"
 else
 	folder=`pwd`
 	echo "ROCfunction called in $folder"
 
+	#now notiWorkband always be 1
 	if [ $((notiWorkband)) -eq 1 ]; then
 		echo "fpr,tpr" > ROCtmp.dat
 		echo "file" > filerocname
-		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		for coli in `seq 1 1 $totalcol`	#col 1 and 2 always be name in metaphlan,constrains and kraken, we begin in reads cols >=2
+		totalcol=`awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE`
+		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be name in metaphlan,constrains and kraken, we begin in reads cols >=2
 		do
-			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 			filename=`cat htmp`
 			TP=0	#true positive
 			TN=0	#true negative
@@ -546,11 +554,8 @@ else
 			PerdonazoFunction
 			
 			###########TRUE POSITIVE AND FALSE POSITIVE###########
-			while read line
+			while read name1 name2 reads
 			do
-				name1=`echo "$line" |awk '{print $1}'`
-				name2=`echo "$line" |awk '{print $2}'`
-				reads=`echo "$line" |awk '{print $3}'`
 				linetir=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $1, $2, $3;exit}}' $REALDATAFILE` #line="" make the script crash, awk print $1, $2; fix it
 
 				if [ "$linetir" != "" ]; then
@@ -598,11 +603,12 @@ else
 		done
 		
 		paste -d "," filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
-		sed "2d" ROC.$ORIGINALSNAME > tmp
-		rm ROC.$ORIGINALSNAME
-		mv tmp ROC.$ORIGINALSNAME
+#		sed "2d" ROC.$ORIGINALSNAME > tmp
+#		rm ROC.$ORIGINALSNAME
+#		mv tmp ROC.$ORIGINALSNAME
 
 		rm name_reads_tmp htmp filerocname ROCtmp.dat
+
 	else
 		echo "fpr,tpr" > ROCtmp.dat
 		echo "file" > filerocname
@@ -696,8 +702,11 @@ function SIMOBSfunction {
 				nofetch=""
 				while [ "$nofetch" == "" ]
 				do
-					curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml
-					nofetch=`cat tmp.xml`
+					if curl -s "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml ;then
+						nofetch=`cat tmp.xml`
+					else
+						echo "curl error fetch, internet connection?"
+					fi
 				done
 				name=`awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml` #be careful with \n
 				lineage=`awk 'BEGIN{FS="[<|>]";prev=""}{if($2=="ScientificName"){prev=$3}if($3=="superkingdom"){printf "%s,",prev}if($3=="phylum"){printf "%s,",prev}if($3=="class"){printf "%s,",prev}if($3=="order"){printf "%s,", prev}if($3=="family"){printf "%s,",prev}if($3=="genus"){printf "%s,",prev}if($3=="species"){printf "%s,",prev}}' tmp.xml`
@@ -726,13 +735,11 @@ function SIMOBSfunction {
 		#fetch ti for species name
 		awk 'BEGIN{FS=","}{printf "\"%s\",",$7 ;for (i=10;i<NF;i++){printf "%s,",$i}printf "%s\n",$NF}' $BACKUPS > stmp
 		SIMDATAFILE="stmp"
+		
 		#Grouping same names
-
 		echo "Grouping otus simulated otus"
 		groupingFunction
 		Rscript grp.R stmp T
-		sed "s/\.reads/-reads/g" stmp > tmp
-		mv tmp stmp
 		rm grp.R
 
 	fi
