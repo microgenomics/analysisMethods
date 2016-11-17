@@ -113,6 +113,7 @@ do
 				statusband=$((statusband+1))
 				REALDATAFILE=$i
 				realdataband=0
+			fi
 				#####################	FETCH ID REAL DATA	########################
 				echo "checking your real data file (remember the format [abundance gi/ti id])"
 				fields=`awk '{print NF;exit}' $REALDATAFILE`
