@@ -233,7 +233,6 @@ do
 				echo "ERROR: $i doesn't exist"
 				exit
 			fi
-			exit
 		fi
 		
 		if [ $((simdataband)) -eq 1 ];then
