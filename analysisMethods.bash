@@ -156,83 +156,74 @@ do
 					;;
 				esac
 
-				#now notiWorkband always be 1
-				if [ $((notiWorkband)) -eq 1 ]; then
-					echo "convertion work for real data file"
+				echo "convertion gixti for real data file"
 
-					#fetch ti for species name
-					firstline=0
-					while read line
-					do
-						if [ $((firstline)) -eq 0 ]; then
-							firstline=1
-							echo "name reads" > newrealtmp
-						else
-							ti=`echo "$line" |awk '{print $1}'`
-							abu=`echo "$line" |awk '{print $2}'`
-							echo "fetching lineage from ti: $ti"
-							#fetch the ti by ncbi api
+				#fetch ti for species name
+				firstline=0
+				while read line
+				do
+					if [ $((firstline)) -eq 0 ]; then
+						firstline=1
+						echo "name reads" > newrealtmp
+					else
+						ti=`echo "$line" |awk '{print $1}'`
+						abu=`echo "$line" |awk '{print $2}'`
+						echo "fetching lineage from ti: $ti"
+						#fetch the ti by ncbi api
+						nofetch=""
+						while [ "$nofetch" == "" ] || [[ "$nofetch" =~ "Connection refused" ]]
+						do
+							if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml ;then
+								nofetch=`cat tmp.xml`
+							else
+								echo "curl error fetch, internet connection?"
+							fi
+						done
+						name=$(awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml) #be careful with \n
+						spctoawk=$(awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml |awk '{print $2}')
+						lineage=$(awk -v emergencyname=$spctoawk 'BEGIN{FS="[<|>]";prev="";superk="";phy="";class="";order="";fam="";gen="";spc=""}{if($2=="ScientificName"){prev=$3}if($3=="superkingdom"){superk=prev}if($3=="phylum"){phy=prev}if($3=="class"){class=prev}if($3=="order"){order=prev}if($3=="family"){fam=prev}if($3=="genus"){gen=prev}if($3=="species"){spc=prev}}
+						END{if(superk==""){printf "unknown,"}else{printf "%s,",superk};if(phy==""){printf "unknow,"}else{printf "%s,",phy}; if(class==""){printf "unknow,"}else{printf "%s,",class}; if(order==""){printf "unknow,"}else{printf "%s,",order}; if(fam==""){printf "unknow,"}else{printf "%s,",fam}; if(gen==""){printf "unknow,"}else{printf "%s,",gen}; if(spc==""){if(emergencyname==""){print "unknow,"}else{printf "%s,",emergencyname}}else{printf "%s,",spc}}' tmp.xml)
+						cand=$(echo "$lineage" |awk '{if($0 ~ "Candidatus"){print "YES"}else{print "NO"}}')
+						unknowNum=$(echo "$lineage" |grep -o 'unknow' | wc -l)
+
+						if [ $((unknowNum)) -ge 6 ] || [ "$lineage" == "" ];then
+							echo "error to take lineage from ti $ti from taxonomy NCBI, using nuccore NCBI"
+							#emergency step
 							nofetch=""
 							while [ "$nofetch" == "" ] || [[ "$nofetch" =~ "Connection refused" ]]
 							do
-								if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml ;then
-									nofetch=`cat tmp.xml`
+								if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ti" > tmp.txt ;then
+									nofetch=`cat tmp.txt`
 								else
-									echo "curl error fetch, internet connection?"
+									echo "curl (emergency step), error fetch, internet connection?"
 								fi
 							done
-							name=$(awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml) #be careful with \n
-							spctoawk=$(awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml |awk '{print $2}')
-							lineage=$(awk -v emergencyname=$spctoawk 'BEGIN{FS="[<|>]";prev="";superk="";phy="";class="";order="";fam="";gen="";spc=""}{if($2=="ScientificName"){prev=$3}if($3=="superkingdom"){superk=prev}if($3=="phylum"){phy=prev}if($3=="class"){class=prev}if($3=="order"){order=prev}if($3=="family"){fam=prev}if($3=="genus"){gen=prev}if($3=="species"){spc=prev}}
-							END{if(superk==""){printf "unknown,"}else{printf "%s,",superk};if(phy==""){printf "unknow,"}else{printf "%s,",phy}; if(class==""){printf "unknow,"}else{printf "%s,",class}; if(order==""){printf "unknow,"}else{printf "%s,",order}; if(fam==""){printf "unknow,"}else{printf "%s,",fam}; if(gen==""){printf "unknow,"}else{printf "%s,",gen}; if(spc==""){if(emergencyname==""){print "unknow,"}else{printf "%s,",emergencyname}}else{printf "%s,",spc}}' tmp.xml)
-							cand=$(echo "$lineage" |awk '{if($0 ~ "Candidatus"){print "YES"}else{print "NO"}}')
-							unknowNum=$(echo "$lineage" |grep -o 'unknow' | wc -l)
-
-							if [ $((unknowNum)) -ge 6 ] || [ "$lineage" == "" ];then
-								echo "error to take lineage from ti $ti from taxonomy NCBI, using nuccore NCBI"
-								#emergency step
-								nofetch=""
-								while [ "$nofetch" == "" ] || [[ "$nofetch" =~ "Connection refused" ]]
-								do
-									if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ti" > tmp.txt ;then
-										nofetch=`cat tmp.txt`
-									else
-										echo "curl (emergency step), error fetch, internet connection?"
-									fi
-								done
-								name=$(grep "taxname" tmp.txt |awk -F"\"" '{print $2}' |awk '{print $1, $2}')
-								lineageLine=$(grep -n "lineage" tmp.txt |cut -d " " -f 1 |sed "s/://g" |awk '{print $1+1}')
-								lineage=$(head -n $lineageLine tmp.txt |tail -n2 |awk '{if($NF!=","){printf "%s",$0}else{printf "%s\n",$0}}' |awk -F"\"" '{gsub("; ",",");print $2}')
-								#lineage only get until genus level, so, we added the species
-								lineage=$(echo $lineage,$name)
-							fi
-
-							if [ "$cand" == "YES" ]; then
-								name=$(echo "$name" |sed "s/Candidatus //g")
-								echo "$name $abu" >> newrealtmp
-							else
-								name=$(echo "$name" |awk '{gsub("\\[|\\]","");print $1, $2}')
-								echo "$name $abu" >> newrealtmp
-							fi
-							rm tmp.xml tmp.txt
+							name=$(grep "taxname" tmp.txt |awk -F"\"" '{print $2}' |awk '{print $1, $2}')
+							lineageLine=$(grep -n "lineage" tmp.txt |cut -d " " -f 1 |sed "s/://g" |awk '{print $1+1}')
+							lineage=$(head -n $lineageLine tmp.txt |tail -n2 |awk '{if($NF!=","){printf "%s",$0}else{printf "%s\n",$0}}' |awk -F"\"" '{gsub("; ",",");print $2}')
+							#lineage only get until genus level, so, we added the species
+							lineage=$(echo $lineage,$name)
 						fi
-					done < <(grep "" $REALDATAFILE)
-					
-					awk '{if(NR>1){print "\""$1" "$2"\""","$3}}' newrealtmp >rtmp
-					rm -f newrealtmp
-					REALDATAFILE="rtmp"
+
+						if [ "$cand" == "YES" ]; then
+							name=$(echo "$name" |sed "s/Candidatus //g")
+							echo "$name $abu" >> newrealtmp
+						else
+							name=$(echo "$name" |awk '{gsub("\\[|\\]","");print $1, $2}')
+							echo "$name $abu" >> newrealtmp
+						fi
+						rm -f tmp.xml tmp.txt
+					fi
+				done < <(grep "" $REALDATAFILE)
 				
-					#Grouping same names
-					groupingFunction
-					Rscript grp.R rtmp F
+				awk '{if(NR>1){print "\""$1" "$2"\""","$3}}' newrealtmp >rtmp
+				rm -f newrealtmp
+				REALDATAFILE="rtmp"
+				
+				#Grouping same names
+				groupingFunction
+				Rscript grp.R rtmp F
 
-				fi
-
-			#####################################################################
-			else
-				echo "ERROR: $i doesn't exist"
-				exit
-			fi
 		fi
 		
 		if [ $((simdataband)) -eq 1 ];then
