@@ -8,7 +8,7 @@ Analysis Methods Module is a final module from SEPA (Simulation, Execution, Pars
 ##Requirements
 
 * Bash version 4 (comes with Linux and MacOSX)
-* Internet connection if your realdata file (maybe metasim_conf_file.mprf) contain Genomes ID (gi)
+* Internet connection if your realdata file (maybe metasim\_conf_file.mprf or same format [abundance 'gi or ti' ginumber]) contain Genomes ID (gi)
 
 ##Usage
 analysisMethods provide three methods for the csv file:
@@ -22,13 +22,10 @@ you need to specify what analysis you want in the configuration file like this:
 	# parseMethods configuration file (config.conf)#
 	# add comments using the pound character
 	
-	ABSENT=no
 	ANALYSISTYPE=ROC_CURVE,R2,RMS_RE
 	TOTALGENOMES=426
 
-	#ABSENT is a flag used to specify whether you are using a database where you know a target microbe is present or not. Default is no.
-	#if ABSENT flag is set to "yes", then you need to specify a NCBI's taxonomy ID for the taxon that is kept constant using TIPERMAMENT flag
-	#TIPERMANENT=568206
+	#ANALYSISTYPE is a flag that specify the analysis that you want to do.
 	#TOTALGENOMES is a flag that you need to specify if ROC CURVE analysis is specified. its mean the universe of genomes (data base) that you used in mapping step (all genomes)
 	
 in example, three methods are required, can be only RMS_RE too or whatever.
