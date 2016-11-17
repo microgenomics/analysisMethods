@@ -278,220 +278,112 @@ function R2function {
 	#	#WARNING WRONG IMPLEMENTED
 	#	folder=`pwd`
 	#	echo "R2function called in $folder"
-	#	if [ $((notiWorkband)) -eq 1 ]; then
-	#		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
-	#		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-	#		for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
+	#	echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
+	#	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
+	#	for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
+	#	do
+	#		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+	#		firstline=0
+	#
+	#		while read line
 	#		do
-	#			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
-	#			firstline=0
-	#			PerdonazoFunction
+	#			names=""
+	#			if [ $((firstline)) -eq 0 ];then
+	#				firstline=1
+	#			else
+	#				name1=`echo "$line" |awk '{print $1}'`
+	#				name2=`echo "$line" |awk '{print $2}'`
+	#				readr=`echo "$line" |awk '{print $3}'`
 	#
-	#			while read line
-	#			do
-	#				names=""
-	#				if [ $((firstline)) -eq 0 ];then
-	#					firstline=1
+	#				names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
+	#				reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
+	#
+	#				if [ "$names" == "" ]; then
+	#					echo "$readr 0" >> corr
 	#				else
-	#					name1=`echo "$line" |awk '{print $1}'`
-	#					name2=`echo "$line" |awk '{print $2}'`
-	#					readr=`echo "$line" |awk '{print $3}'`
-	#
-	#					names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
-	#					reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
-	#
-	#					if [ "$names" == "" ]; then
-	#						echo "$readr 0" >> corr
-	#					else
-	#						echo "$reads $readr" >> corr
-	#					fi
+	#					echo "$reads $readr" >> corr
 	#				fi
-	#			done < <(grep "" $REALDATAFILE)
-	#			getR2Function > getR2.R
-	#			Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
-	#			cat htmp R2tmp > Rtmp2
-	#			paste R2.$ORIGINALSNAME Rtmp2 > ftmp
-	#			mv ftmp R2.$ORIGINALSNAME
-	#			rm getR2.R corr
-	#		done 
-	#		rm name_reads_tmp R2tmp htmp Rtmp2
-	#	else
-	#		echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
-	#		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-	#		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
-	#		do
-	#			awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
-	#			firstline=0
-	#			PerdonazoFunction
-	#
-	#			while read line
-	#			do
-	#				tis=""
-	#				if [ $((firstline)) -eq 0 ];then
-	#					firstline=1
-	#				else
-	#					tir=`echo "$line" |awk '{print $1}'`
-	#					readr=`echo "$line" |awk '{print $2}'`
-	#
-	#					tis=`grep "$tir" ti_reads_tmp |awk '{print $1}'`
-	#					reads=`grep "$tis" ti_reads_tmp |awk '{print $2}'`
-	#
-	#					if [ "$tis" == "" ]; then
-	#						echo "$readr 0" >> corr
-	#					else
-	#						echo "$reads $readr" >> corr
-	#					fi
-	#
-	#				fi
-	#			done < <(grep "" $REALDATAFILE)
-	#			getR2Function > getR2.R
-	#			Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
-	#			cat htmp R2tmp > Rtmp2
-	#			paste R2.$ORIGINALSNAME Rtmp2 > ftmp
-	#			mv ftmp R2.$ORIGINALSNAME
-	#			rm getR2.R corr
-	#			
-	#		done 
-	#		rm ti_reads_tmp R2tmp htmp Rtmp2
-	#	fi
+	#			fi
+	#		done < <(grep "" $REALDATAFILE)
+	#		getR2Function > getR2.R
+	#		Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
+	#		cat htmp R2tmp > Rtmp2
+	#		paste R2.$ORIGINALSNAME Rtmp2 > ftmp
+	#		mv ftmp R2.$ORIGINALSNAME
+	#		rm getR2.R corr
+	#	done 
+	#	rm name_reads_tmp R2tmp htmp Rtmp2
 
 }
 function RMSfunction {
-	folder=`pwd`
+	folder=$(pwd)
 	echo "RRMSE function called in $folder"
 
-	if [ $((notiWorkband)) -eq 1 ]; then
-		totalcol=`awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE`
-		echo -e "Analysis,RRMSE,NAVGRE" > RMS.$ORIGINALSNAME
-		for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name
+	totalcol=$(awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE)
+	echo -e "Analysis,RRMSE,NAVGRE" > RMS.$ORIGINALSNAME
+	for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name
+	do
+		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+		#in the next line, we find the ti that match in simulation data file.
+		suma=0
+		sumprom=0
+		firstline=0
+
+		while read line 
 		do
-			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
-			PerdonazoFunction
-			#in the next line, we find the ti that match in simulation data file.
-			suma=0
-			sumprom=0
-			firstline=0
-			PerdonazoFunction
+			if [ $((firstline)) -eq 0 ];then
+				firstline=1
+			else
+				name1=$(echo $line |awk '{print $1}')
+				name2=$(echo $line |awk '{print $2}')
+				abu=$(echo $line |awk '{print $3}')
+				backupsuma=$suma
+				backupprom=$sumprom
 
-			while read line 
-			do
-				if [ $((firstline)) -eq 0 ];then
-					firstline=1
-				else
-					name1=`echo $line |awk '{print $1}'`
-					name2=`echo $line |awk '{print $2}'`
-					abu=`echo $line |awk '{print $3}'`
-					backupsuma=$suma
-					backupprom=$sumprom
+				suma=$(awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$suma 'function abs(v) {return v < 0 ? -v : v}{
+																		if($1==realname1 && $2==realname2){
+																			if(abu==0){
+																				exit #to avoid the 0/0
+																			}
+																			re=abs(($3-abu)/abu);
+																			print (suma+(re*re));										
+																			exit
+																		}
+																	}' name_reads_tmp)
 
-					suma=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$suma 'function abs(v) {return v < 0 ? -v : v}{
-																			if($1==realname1 && $2==realname2){
+				sumprom=$(awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$sumprom 'function abs(v) {return v < 0 ? -v : v}{
+																		if($1==realname1 && $2==realname2){
 																				if(abu==0){
-																					exit #to avoid the 0/0
+																					exit
 																				}
 																				re=abs(($3-abu)/abu);
-																				print (suma+(re*re));										
+																				print (suma+re);																						
 																				exit
 																			}
-																		}' name_reads_tmp`
-
-					sumprom=`awk -v realname1=$name1 -v realname2=$name2 -v abu=$abu -v suma=$sumprom 'function abs(v) {return v < 0 ? -v : v}{
-																			if($1==realname1 && $2==realname2){
-																					if(abu==0){
-																						exit
-																					}
-																					re=abs(($3-abu)/abu);
-																					print (suma+re);																						
-																					exit
-																				}
-																			}' name_reads_tmp`
-					if [ "$suma" == "" ];then
-						suma=`echo "$backupsuma"`
-					fi
-			
-					if [ "$sumprom" == "" ];then
-						sumprom=`echo "$backupprom"`
-					fi
-
+																		}' name_reads_tmp)
+				if [ "$suma" == "" ];then
+					suma=$(echo "$backupsuma")
 				fi
-			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
-			#exit
-
-			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE > rrmsetmp
-			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
-
-			paste -d "," rrmsetmp avg > 2rms
-			paste -d "," htmp 2rms > rrmse
-			cat rrmse
-			cat RMS.$ORIGINALSNAME rrmse > rmsvalues
-			mv rmsvalues RMS.$ORIGINALSNAME
-		done
-	else
-		totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-		echo -e "Analysis,RRMSE,NAVGRE" > RMS.$ORIGINALSNAME
-		for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
-		do
-			awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
-			PerdonazoFunction
-			#in the next line, we find the ti that match in simulation data file.
-			suma=0
-			sumprom=0
-			firstline=0
-			PerdonazoFunction
-
-			while read line 
-			do
-				if [ $((firstline)) -eq 0 ];then
-					firstline=1
-				else
-					ti=`echo $line |awk '{print $1}'`
-					abu=`echo $line |awk '{print $2}'`
-					backupsuma=$suma
-					backupprom=$sumprom
-
-
-					suma=`awk -v realti=$ti -v abu=$abu -v suma=$suma 'function abs(v) {return v < 0 ? -v : v}{
-																			if($1==realti){ 
-																				if(abu==0){
-																					exit #to avoid the 0/0
-																				}
-																				re=abs(($2-abu)/abu);
-																				print (suma+(re*re));
-																				exit
-																			}
-																		}' ti_reads_tmp`
-					sumprom=`awk -v realti=$ti -v abu=$abu -v suma=$sumprom 'function abs(v) {return v < 0 ? -v : v}{
-																			if($1==realti){
-																					if(abu==0){
-																						exit
-																					}
-																					re=abs(($2-abu)/abu);
-																					print (suma+re);
-																					exit
-																				}
-																			}' ti_reads_tmp`
-					if [ "$suma" == "" ];then
-						suma=`echo "$backupsuma"`
-					fi
-			
-					if [ "$sumprom" == "" ];then
-						sumprom=`echo "$backupprom"`
-					fi
-
+		
+				if [ "$sumprom" == "" ];then
+					sumprom=$(echo "$backupprom")
 				fi
-			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
 
-			awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE  > rrmsetmp
-			awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
+			fi
+		done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
+		#exit
 
-			paste -d "," rrmsetmp avg > 2rms
-			paste -d "," htmp 2rms > rrmse
-			cat RMS.$ORIGINALSNAME rrmse > rmsvalues
-			mv rmsvalues RMS.$ORIGINALSNAME
-		done
-	fi
+		awk -v suma=$suma 'END{print sqrt(suma/(NR-1))}' $REALDATAFILE > rrmsetmp
+		awk -v suma=$sumprom 'END{print suma/(NR-1)}' $REALDATAFILE > avg
 
-	rm -f name_reads_tmp htmp rrmsetmp rrmse avg 2rms ti_reads_tmp
+		paste -d "," rrmsetmp avg > 2rms
+		paste -d "," htmp 2rms > rrmse
+		cat rrmse
+		cat RMS.$ORIGINALSNAME rrmse > rmsvalues
+		mv rmsvalues RMS.$ORIGINALSNAME
+	done
+
+	rm -f name_reads_tmp htmp rrmsetmp rrmse avg 2rms
 
 }
 function ROCfunction {
@@ -501,147 +393,75 @@ function ROCfunction {
 	if ! [[ "$TOTALGENOMES" =~ $re ]] ; then
 		echo "you need to specify TOTALGENOMES flag with a valid number to calculate roc curves"
 	else
-		folder=`pwd`
+		folder=$(pwd)
 		echo "ROCfunction called in $folder"
 	
-		#now notiWorkband always be 1
-		if [ $((notiWorkband)) -eq 1 ]; then
-			echo "fpr,tpr" > ROCtmp.dat
-			echo "file" > filerocname
-			totalcol=`awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE`
-			for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be name in metaphlan,constrains and kraken, we begin in reads cols >=2
+		echo "fpr,tpr" > ROCtmp.dat
+		echo "file" > filerocname
+		totalcol=$(awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE)
+		for coli in $(seq 3 1 $totalcol)	#col 1 and 2 always be name in metaphlan,constrains and kraken, we begin in reads cols >=2
+		do
+			awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
+			filename=$(cat htmp)
+			TP=0	#true positive
+			TN=0	#true negative
+			FP=0	#false positive
+			FN=0	#false negative
+				
+			###########TRUE POSITIVE AND FALSE POSITIVE###########
+			while read name1 name2 reads
 			do
-				awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
-				filename=`cat htmp`
-				TP=0	#true positive
-				TN=0	#true negative
-				FP=0	#false positive
-				FN=0	#false negative
+				linetir=$(awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $1, $2, $3;exit}}' $REALDATAFILE) #line="" make the script crash, awk print $1, $2; fix it
 	
-				PerdonazoFunction
-				
-				###########TRUE POSITIVE AND FALSE POSITIVE###########
-				while read name1 name2 reads
-				do
-					linetir=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $1, $2, $3;exit}}' $REALDATAFILE` #line="" make the script crash, awk print $1, $2; fix it
-	
-					if [ "$linetir" != "" ]; then
-						name1=`echo "$linetir" |awk '{print $1}'`
-						name2=`echo "$linetir" |awk '{print $2}'`
-						readr=`echo "$linetir" |awk '{print $3}'`
-						resultado=`echo "$reads $readr" |awk '{if($1 >= $2/2){print "1"}else{print "0"}}'` #bash doesn't work with float
-						
-						if [ "$resultado" == "1" ]; then
-							TP=`echo  "$TP+1" |bc`
-						else
-							band=`echo "$reads $readr" |awk '{if($1==0 && $2>0){print "fp";exit}}'`
-							if [ "$band" == "fp" ]; then
-								FP=`echo "$FP+1" |bc`
-							fi
-						fi
-	
-					else
-						FP=`echo "$FP+1" |bc`	
-					fi
+				if [ "$linetir" != "" ]; then
+					name1=$(echo "$linetir" |awk '{print $1}')
+					name2=$(echo "$linetir" |awk '{print $2}')
+					readr=$(echo "$linetir" |awk '{print $3}')
+					resultado=$(echo "$reads $readr" |awk '{if($1 >= $2/2){print "1"}else{print "0"}}') #bash doesn't work with float
 					
-				done < <(grep "" name_reads_tmp)	#mprf parsed file have 'ti abundance' format
-				
-				###########FALSE NEGATIVE AND TRUE NEGATIVE###########
-	
-				while read line
-				do	
-					name1=`echo "$line" |awk '{print $1}'`
-					name2=`echo "$line" |awk '{print $2}'`
-					names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $1, $2;exit}}' name_reads_tmp`
-					if [ "$names" == "" ]; then
-						FN=`echo "$FN+1" |bc`
-					fi								
-				done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
-				TN=`wc -l name_reads_tmp |awk '{print $1}' |awk -v total=$TOTALGENOMES -v tn=$TN '{print tn+(total-$1)}'`
-	
-				######################################################
-				
-				echo -e "\nTP: $TP FP:$FP FN: $FN TN:$TN"
-				tpr=`echo "$TP $FN" | awk '{print $1/($1+$2)}'`
-				fpr=`echo "$FP $TN" | awk '{print ($1/($1+$2))}'`
-				echo "fpr: $fpr tpr: $tpr"
-				echo "$filename" >> filerocname
-				echo "$fpr,$tpr" >> ROCtmp.dat
-			done
-			
-			paste -d "," filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
-	#		sed "2d" ROC.$ORIGINALSNAME > tmp
-	#		rm ROC.$ORIGINALSNAME
-	#		mv tmp ROC.$ORIGINALSNAME
-	
-			rm name_reads_tmp htmp filerocname ROCtmp.dat
-	
-		else
-			echo "fpr,tpr" > ROCtmp.dat
-			echo "file" > filerocname
-			totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-			for coli in `seq 2 1 $totalcol`	#col 1 always be tax id, we begin in reads cols >=2
-			do
-				awk -v coli=$coli '{if(NR>1){print $1, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > ti_reads_tmp
-				filename=`cat htmp`
-				TP=0	#true positive
-				TN=0	#true negative
-				FP=0	#false positive
-				FN=0	#false negative
-	
-				PerdonazoFunction
-				
-				###########TRUE POSITIVE AND FALSE POSITIVE###########
-				for tis in `awk '{print $1}' ti_reads_tmp` #$1 is ti
-				do
-					linetir=`grep -w "$tis" $REALDATAFILE |awk '{print $1, $2}'` #line="" make the script crash, awk print $1, $2; fix it
-	
-					if [ "$linetir" != "" ]; then
-						tir=`echo "$linetir" |awk '{print $1}'`
-						readr=`echo "$linetir" |awk '{print $2}'`
-						reads=`grep -w "$tir" ti_reads_tmp |awk '{print $2}'`
-						resultado=`echo "$reads $readr" |awk '{if($1 >= $2/2){print "1"}else{print "0"}}'` #bash doesn't work with float
-						
-						if [ "$resultado" == "1" ]; then
-							TP=`echo  "$TP+1" |bc`
-						else
-							band=`echo "$reads $readr" |awk '{if($1==0 && $2>0){print "fp";exit}}'`
-							if [ "$band" == "fp" ]; then
-								FP=`echo "$FP+1" |bc`
-							fi
-	
-						fi
-	
+					if [ "$resultado" == "1" ]; then
+						TP=$(echo  "$TP+1" |bc)
 					else
-						FP=`echo "$FP+1" |bc`	
+						band=$(echo "$reads $readr" |awk '{if($1==0 && $2>0){print "fp";exit}}')
+						if [ "$band" == "fp" ]; then
+							FP=$(echo "$FP+1" |bc)
+						fi
 					fi
-					
-				done
-				
-				###########FALSE NEGATIVE AND TRUE NEGATIVE###########
 	
-				for tir in `awk '{print $1}' $REALDATAFILE` #$1 is ti
-				do	
-					tis=`grep -w "$tir" ti_reads_tmp | awk '{print $1}'`
-					if [ "$tis" == "" ]; then
-						FN=`echo "$FN+1" |bc`
-					fi								
-				done
-				TN=`wc -l ti_reads_tmp |awk '{print $1}' |awk -v total=$TOTALGENOMES -v tn=$TN '{print tn+(total-$1)}'`
-	
-				######################################################
+				else
+					FP=$(echo "$FP+1" |bc)
+				fi
 				
-				echo -e "\nTP: $TP FP:$FP FN: $FN TN:$TN"
-				tpr=`echo "$TP $FN" | awk '{print $1/($1+$2)}'`
-				fpr=`echo "$FP $TN" | awk '{print ($1/($1+$2))}'`
-				echo "fpr: $fpr tpr: $tpr"
-				echo "$filename" >> filerocname
-				echo "$fpr,$tpr" >> ROCtmp.dat
-			done
+			done < <(grep "" name_reads_tmp)	#mprf parsed file have 'ti abundance' format
 			
-			paste -d "," filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
-			rm ti_reads_tmp htmp filerocname ROCtmp.dat
-		fi
+			###########FALSE NEGATIVE AND TRUE NEGATIVE###########
+	
+			while read line
+			do	
+				name1=$(echo "$line" |awk '{print $1}')
+				name2=$(echo "$line" |awk '{print $2}')
+				names=$(awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $1, $2;exit}}' name_reads_tmp)
+				if [ "$names" == "" ]; then
+					FN=$(echo "$FN+1" |bc)
+				fi								
+			done < <(grep "" $REALDATAFILE)	#mprf parsed file have 'ti abundance' format
+			TN=$(wc -l name_reads_tmp |awk '{print $1}' |awk -v total=$TOTALGENOMES -v tn=$TN '{print tn+(total-$1)}')
+	
+			######################################################
+			
+			echo -e "\nTP: $TP FP:$FP FN: $FN TN:$TN"
+			tpr=$(echo "$TP $FN" | awk '{print $1/($1+$2)}')
+			fpr=$(echo "$FP $TN" | awk '{print ($1/($1+$2))}')
+			echo "fpr: $fpr tpr: $tpr"
+			echo "$filename" >> filerocname
+			echo "$fpr,$tpr" >> ROCtmp.dat
+		done
+		
+		paste -d "," filerocname ROCtmp.dat > ROC.$ORIGINALSNAME
+	#	sed "2d" ROC.$ORIGINALSNAME > tmp
+	#	rm ROC.$ORIGINALSNAME
+	#	mv tmp ROC.$ORIGINALSNAME
+		rm name_reads_tmp htmp filerocname ROCtmp.dat
 	fi
 
 }
@@ -657,7 +477,6 @@ function SIMOBSfunction {
 		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 
 		firstline=0
-		PerdonazoFunction
 		while read line
 		do
 			if [ $((firstline)) -eq 0 ];then
