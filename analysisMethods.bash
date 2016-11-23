@@ -233,14 +233,14 @@ do
 				statusband=$((statusband+1))
 				SIMDATAFILE=$i
 				BACKUPS=$i
-				ORIGINALSNAME=`echo "$SIMDATAFILE" |rev |cut -d "/" -f 1 |rev`
+				ORIGINALSNAME=$(echo "$SIMDATAFILE" |rev |cut -d "/" -f 1 |rev)
 
-				if [ $((notiWorkband)) -eq 1 ]; then
+				#if [ $((notiWorkband)) -eq 1 ]; then
 					echo "metaphlan,constrains,sigma convertion working" #now convertions apply to all softwares, check parseMethods for know the changes
-					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Name"){print i;exit}}}}' $SIMDATAFILE`			
-				else
-					colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "ti"){print i;exit}}}}' $SIMDATAFILE`
-				fi
+					colti=$(awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Name"){print i;exit}}}}' $SIMDATAFILE)		
+				#else
+				#	colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "ti"){print i;exit}}}}' $SIMDATAFILE`
+				#fi
 
 				if [ "$colti" == "" ];then
 					echo "header 'ti' not found in $SIMDATAFILE, check your csv"
