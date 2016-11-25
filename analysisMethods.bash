@@ -391,7 +391,7 @@ function ROCfunction {
 	re='^[0-9]+$'
 	#only number no spaces
 	if ! [[ "$TOTALGENOMES" =~ $re ]] ; then
-		echo "you need to specify TOTALGENOMES flag with a valid number to calculate roc curves"
+		echo "you need to specify TOTALGENOMES flag with a integer number to calculate roc curves"
 	else
 		folder=$(pwd)
 		echo "ROCfunction called in $folder"
@@ -461,18 +461,18 @@ function ROCfunction {
 	#	sed "2d" ROC.$ORIGINALSNAME > tmp
 	#	rm ROC.$ORIGINALSNAME
 	#	mv tmp ROC.$ORIGINALSNAME
-		rm name_reads_tmp htmp filerocname ROCtmp.dat
+		rm -f name_reads_tmp htmp filerocname ROCtmp.dat
 	fi
 
 }
 function SIMOBSfunction {
-	folder=`pwd`
+	folder=$(pwd)
 	echo "Simulation vs Observed function called in: $folder"
 
-	totalcol=`awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE`
+	totalcol=$(awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE)
 	awk '{if(NR>1){print $1" "$2","$3}else{print "OTU,REAL"}}' $REALDATAFILE > SIMOBS.$ORIGINALSNAME
 
-	for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name we begin in reads cols >=3
+	for coli in $(seq 3 1 $totalcol)	#col 1 and 2 always be the name we begin in reads cols >=3
 	do
 		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 
@@ -482,10 +482,10 @@ function SIMOBSfunction {
 			if [ $((firstline)) -eq 0 ];then
 				firstline=1
 			else
-				name1=`echo "$line" |awk '{print $1}'`
-				name2=`echo "$line" |awk '{print $2}'`
-				readr=`echo "$line" |awk '{print $3}'`
-				reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
+				name1=$(echo "$line" |awk '{print $1}')
+				name2=$(echo "$line" |awk '{print $2}')
+				readr=$(echo "$line" |awk '{print $3}')
+				reads=$(awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp)
 				if [ "$reads" == "" ]; then
 					echo "0" >> simobstmp
 				else
@@ -498,7 +498,7 @@ function SIMOBSfunction {
 		mv filetmp SIMOBS.$ORIGINALSNAME
 		rm simobstmp header
 	done
-	rm htmp name_reads_tmp
+	rm -f htmp name_reads_tmp
 
 }
 
