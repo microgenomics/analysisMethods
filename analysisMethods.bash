@@ -94,7 +94,7 @@ do
 
 			for parameter in $(awk '{print}' $i)
 			do
-				Pname=`echo "$parameter" |awk 'BEGIN{FS="="}{print $1}'`		
+				Pname=$(echo "$parameter" |awk 'BEGIN{FS="="}{print $1}')		
 				case $Pname in
 					"TOTALGENOMES")
 						TOTALGENOMES=$(echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g")		
