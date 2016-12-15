@@ -94,13 +94,13 @@ do
 
 			for parameter in $(awk '{print}' $i)
 			do
-				Pname=$(echo "$parameter" |awk 'BEGIN{FS="="}{print $1}')		
+				Pname=$(echo "$parameter" |awk -F"=" '{print $1}')		
 				case $Pname in
 					"TOTALGENOMES")
-						TOTALGENOMES=$(echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g")		
+						TOTALGENOMES=$(echo "$parameter" |awk -F"=" '{print $2}' |sed "s/,/ /g")
 					;;
 					"ANALYSISTYPE")
-						ANALYSISTYPE=$(echo "$parameter" |awk 'BEGIN{FS="="}{print $2}' |sed "s/,/ /g")			
+						ANALYSISTYPE=$(echo "$parameter" |awk -F"=" '{print $2}' |sed "s/,/ /g")
 					;;
 				esac
 			done
@@ -175,7 +175,7 @@ do
 						while [ "$nofetch" == "" ] || [[ "$nofetch" =~ "Connection refused" ]]
 						do
 							if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml ;then
-								nofetch=`cat tmp.xml`
+								nofetch=$(cat tmp.xml)
 							else
 								echo "curl error fetch, internet connection?"
 							fi
@@ -194,7 +194,7 @@ do
 							while [ "$nofetch" == "" ] || [[ "$nofetch" =~ "Connection refused" ]]
 							do
 								if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ti" > tmp.txt ;then
-									nofetch=`cat tmp.txt`
+									nofetch=$(cat tmp.txt)
 								else
 									echo "curl (emergency step), error fetch, internet connection?"
 								fi
@@ -273,47 +273,8 @@ function getR2Function {
 	summary(lm(V1~V2, data=correlaciones))'
 
 }
-function R2function {
+function TIMEfunction {
 	echo ""
-	#	#WARNING WRONG IMPLEMENTED
-	#	folder=`pwd`
-	#	echo "R2function called in $folder"
-	#	echo -e "Analysis\nR2" > R2.$ORIGINALSNAME
-	#	totalcol=`awk '{print NF;exit}' $SIMDATAFILE`
-	#	for coli in `seq 2 1 $totalcol`	#col 1 and 2 always be metaphlan name, we begin in reads cols >=3
-	#	do
-	#		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $coli > "htmp"}}' $SIMDATAFILE > name_reads_tmp
-	#		firstline=0
-	#
-	#		while read line
-	#		do
-	#			names=""
-	#			if [ $((firstline)) -eq 0 ];then
-	#				firstline=1
-	#			else
-	#				name1=`echo "$line" |awk '{print $1}'`
-	#				name2=`echo "$line" |awk '{print $2}'`
-	#				readr=`echo "$line" |awk '{print $3}'`
-	#
-	#				names=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print "find";exit}}' name_reads_tmp`
-	#				reads=`awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $3;exit}}' name_reads_tmp`
-	#
-	#				if [ "$names" == "" ]; then
-	#					echo "$readr 0" >> corr
-	#				else
-	#					echo "$reads $readr" >> corr
-	#				fi
-	#			fi
-	#		done < <(grep "" $REALDATAFILE)
-	#		getR2Function > getR2.R
-	#		Rscript getR2.R corr |grep "Multiple" |awk '{print $3}' |awk 'BEGIN{FS=","}{print $1}' > R2tmp
-	#		cat htmp R2tmp > Rtmp2
-	#		paste R2.$ORIGINALSNAME Rtmp2 > ftmp
-	#		mv ftmp R2.$ORIGINALSNAME
-	#		rm getR2.R corr
-	#	done 
-	#	rm name_reads_tmp R2tmp htmp Rtmp2
-
 }
 function RMSfunction {
 	folder=$(pwd)
@@ -321,7 +282,7 @@ function RMSfunction {
 
 	totalcol=$(awk '{if(NR>1){print NF;exit}}' $SIMDATAFILE)
 	echo -e "Analysis,RRMSE,NAVGRE" > RMS.$ORIGINALSNAME
-	for coli in `seq 3 1 $totalcol`	#col 1 and 2 always be the name
+	for coli in $(seq 3 1 $totalcol)	#col 1 and 2 always be the name
 	do
 		awk -v coli=$coli '{if(NR>1){print $1, $2, $coli}else{print $(coli-1) > "htmp"}}' $SIMDATAFILE > name_reads_tmp
 		#in the next line, we find the ti that match in simulation data file.
