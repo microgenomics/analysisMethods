@@ -68,17 +68,14 @@ do
 	"--realdata")
 		realdataband=1
 	;;
-	"--notiWork")
-		notiWorkband=1
-	;;
 	"--help")
 		echo "Usage: bash analysisMethods.bash --cfile [config file] --simdata [simulation table csv format (',' separated)] --realdata [mconf from metasim]"
 		echo -e"\nOptions explain:"
 		echo "--cfile configuration file"
 		echo "--simdata csv with your simulation data obtain from Parse Module provide by SEPA, or your own csv file (e.g. pathoscope_table.csv)"
 		echo "--realdata a file that contain the real values of reads distribution (.mprf of metasim, or some file with format ti-reads [or gi-reads])"
-		echo "Methods Aviables: R2, RRMSE (normalized relative RMS error), ROC. Specify in the config file using the flag 'ANALYSISTYPE'"
-		echo -e "For example: ANALYSISTYPE=RRMSE,R2,SIMOBS\n"
+		echo "Methods Aviables: RRMSE (normalized relative RMS error), ROC, SIMOBS. Specify in the config file using the flag 'ANALYSISTYPE'"
+		echo -e "For example: ANALYSISTYPE=ROC,RRMSE,SIMOBS\n"
 		echo "For ROC_CURVE you must specify a TOTALGENOMES=[integer] flag"
 		echo "See the README for more information"
 		exit
@@ -116,7 +113,7 @@ do
 			fi
 				#####################	FETCH ID REAL DATA	########################
 				echo "checking your real data file (remember the format [abundance gi/ti id])"
-				fields=`awk '{print NF;exit}' $REALDATAFILE`
+				fields=$(awk '{print NF;exit}' $REALDATAFILE)
 				case $fields in
 					"2")
 						echo "file already formated"
@@ -126,21 +123,21 @@ do
 						parsefastaFunction > parsefasta.awk
 						while read line
 						do
-							ID=`echo "$line" |awk '{print $2}'`
+							ID=$(echo "$line" |awk '{print $2}')
 							#parsed file
 							case $ID in
 								"ti")
 									echo "$line" |awk '{print $3, $1}' >> rtmp				
 								;;
 								"gi")
-									abu=`echo "$line" |awk '{print $1}'`
-									gi=`echo "$line" |awk '{print $3}'`
+									abu=$(echo "$line" |awk '{print $1}')
+									gi=$(echo "$line" |awk '{print $3}')
 									ti=""
 									echo "fetching ti by gi: $gi"
 									
 									while [ "$ti" == "" ]
 									do
-										ti=`curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1`
+										ti=$(curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=taxonomy&id=$gi" |grep "<Id>"|tail -n1 |awk '{print $1}' |cut -d '>' -f 2 |cut -d '<' -f 1)
 									done
 									echo "$ti $abu" >> rtmp				
 								;;
@@ -167,14 +164,15 @@ do
 						firstline=1
 						echo "name reads" > newrealtmp
 					else
-						ti=`echo "$line" |awk '{print $1}'`
-						abu=`echo "$line" |awk '{print $2}'`
+						ti=$(echo "$line" |awk '{print $1}')
+						abu=$(echo "$line" |awk '{print $2}')
 						echo "fetching lineage from ti: $ti"
 						#fetch the ti by ncbi api
 						nofetch=""
 						while [ "$nofetch" == "" ] || [[ "$nofetch" =~ "Connection refused" ]]
 						do
 							if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=taxonomy&id=$ti" > tmp.xml ;then
+								touch tmp.xml
 								nofetch=$(cat tmp.xml)
 							else
 								echo "curl error fetch, internet connection?"
@@ -194,6 +192,7 @@ do
 							while [ "$nofetch" == "" ] || [[ "$nofetch" =~ "Connection refused" ]]
 							do
 								if curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=$ti" > tmp.txt ;then
+									touch tmp.txt
 									nofetch=$(cat tmp.txt)
 								else
 									echo "curl (emergency step), error fetch, internet connection?"
