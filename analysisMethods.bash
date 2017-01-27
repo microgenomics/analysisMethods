@@ -12,7 +12,6 @@ localband=0
 statusband=0
 realdataband=0
 simdataband=0
-notiWorkband=1 #always be the transformation to lineage on real data file
 
 function parsefastaFunction {
 	echo 'BEGIN{FS="|"}
@@ -51,10 +50,6 @@ function groupingFunction {
 	write.table(newdf,file,row.names = F,quote = F)' > grp.R
 }
 
-metawork=`echo "$@" |awk '{if($0 ~ "--notiWork"){print 1}else{print 0}}'`
-if [ $((metawork)) -eq 1 ];then
-	notiWorkband=1
-fi
 
 for i in "$@"
 do
@@ -175,7 +170,7 @@ do
 								touch tmp.xml
 								nofetch=$(cat tmp.xml)
 							else
-								echo "curl error fetch, internet connection?"
+								echo "curl error fetch, internet connection?, retrying"
 							fi
 						done
 						name=$(awk 'BEGIN{FS="[<|>]"}{if($2=="ScientificName"){printf "%s\n", $3;exit}}' tmp.xml) #be careful with \n
@@ -195,7 +190,7 @@ do
 									touch tmp.txt
 									nofetch=$(cat tmp.txt)
 								else
-									echo "curl (emergency step), error fetch, internet connection?"
+									echo "curl (emergency step), error fetch, internet connection?, retrying"
 								fi
 							done
 							name=$(grep "taxname" tmp.txt |awk -F"\"" '{print $2}' |awk '{print $1, $2}')
@@ -236,9 +231,9 @@ do
 
 				#if [ $((notiWorkband)) -eq 1 ]; then
 					echo "metaphlan,constrains,sigma convertion working" #now convertions apply to all softwares, check parseMethods for know the changes
-					colti=$(awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Name"){print i;exit}}}}' $SIMDATAFILE)		
+					colti=$(awk -F"," '{if(NR==1){for (i=1;i<=9;i++){if($i ~ "Name"){print i;exit}}}}' $SIMDATAFILE)		
 				#else
-				#	colti=`awk 'BEGIN{FS=","}{if(NR==1){for (i=1;i<=9;i++){if($i ~ "ti"){print i;exit}}}}' $SIMDATAFILE`
+				#	colti=$(awk -F"," '{if(NR==1){for (i=1;i<=9;i++){if($i ~ "ti"){print i;exit}}}}' $SIMDATAFILE)
 				#fi
 
 				if [ "$colti" == "" ];then
@@ -271,9 +266,6 @@ function getR2Function {
 	
 	summary(lm(V1~V2, data=correlaciones))'
 
-}
-function TIMEfunction {
-	echo ""
 }
 function RMSfunction {
 	folder=$(pwd)
@@ -371,7 +363,7 @@ function ROCfunction {
 			###########TRUE POSITIVE AND FALSE POSITIVE###########
 			while read name1 name2 reads
 			do
-				linetir=$(awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $1, $2, $3;exit}}' $REALDATAFILE) #line="" make the script crash, awk print $1, $2; fix it
+				linetir=$(awk -v name1=$name1 -v name2=$name2 '{if($1==name1 && $2==name2){print $1, $2, $3;exit}}' $REALDATAFILE)
 	
 				if [ "$linetir" != "" ]; then
 					name1=$(echo "$linetir" |awk '{print $1}')
@@ -387,7 +379,7 @@ function ROCfunction {
 							FP=$(echo "$FP+1" |bc)
 						fi
 					fi
-	
+					
 				else
 					FP=$(echo "$FP+1" |bc)
 				fi
